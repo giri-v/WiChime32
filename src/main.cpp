@@ -159,6 +159,12 @@ char snapshotTopic[100];
 
 char appSubTopic[100];
 
+const char *remoteUpdateUrl = "http://192.168.0.12/internal/iot";
+
+char fwUpdateUrl[200];
+char latestFWImageIndexUrl[200];
+char latestFirmwareFileName[100];
+
 // put function declarations here:
 void loadPrefs();
 void storePrefs();
@@ -316,6 +322,9 @@ void initAppStrings()
   sprintf(idTopic, "%s/id", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
+  sprintf(fwUpdateUrl, "%s/%s/firmware",remoteUpdateUrl, appName);
+
+  sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 }
 
 void initAppInstanceStrings()
@@ -511,19 +520,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void logMQTTMessage(char *topic, int len, char *payload)
 {
-  String oldMethodName = methodName;
-  methodName = "logMQTTMessage(char *topic, int len, char *payload)";
   Log.infoln("[%s] {%s} ", topic, payload);
-  /*
-    Log.infoln("Payload Length: %d", len);
-
-    if (!isNullorEmpty(payload))
-    {
-      Log.infoln("Payload: %s", payload);
-    }
-  */
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
 }
 
 void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
@@ -556,10 +553,14 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
   methodName = oldMethodName;
 }
 
-void doUpdateFirmware()
+void doUpdateFirmware(char *fileName)
 {
-  File file = SPIFFS.open("/new.bin");
+  String oldMethodName = methodName;
+  methodName = "onMqttMessage()";
+  Log.verboseln("Entering...");
 
+  File file = SPIFFS.open(fileName);
+  
   if (!file)
   {
     Log.errorln("Failed to open file for reading");
@@ -574,6 +575,8 @@ void doUpdateFirmware()
   {
 
     Log.warningln("Cannot do the update!");
+    // TODO: publish a message that the update failed
+
     return;
   };
 
@@ -581,13 +584,13 @@ void doUpdateFirmware()
 
   if (Update.end())
   {
-
     Log.infoln("Successful update");
   }
   else
   {
 
     Log.errorln("Error Occurred: %s", String(Update.getError()));
+    // TODO: publish a message that the update failed
     return;
   }
 
@@ -758,6 +761,48 @@ void setAppID()
   methodName = oldMethodName;
 }
 
+int getlatestFirmware(char *fileName)
+{
+  String oldMethodName = methodName;
+  methodName = "int getlatestFirmware(char *fileName)";
+
+  int result = -1;
+  int httpCode = -1;
+
+  WiFiClient client;
+  HTTPClient http;
+  String payload;
+
+  File f = SPIFFS.open(fileName, FILE_WRITE);
+  if (f)
+  {
+    http.begin(fwUpdateUrl);
+    httpCode = http.GET();
+    if (httpCode > 0)
+    {
+      if (httpCode == HTTP_CODE_OK)
+      {
+        WiFiClient *stream = http.getStreamPtr();
+        while (stream->available())
+        {
+          char c = stream->read();
+          f.print(c);
+        }
+      }
+    }
+    else
+    {
+      Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    }
+    f.close();
+    http.end();
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+  return httpCode;
+}
+
 int webGet(String req, String &res)
 {
   String oldMethodName = methodName;
@@ -802,6 +847,7 @@ int webGet(String req, String &res)
     Log.warningln("[HTTP] Unable to connect");
   }
 
+  Log.verboseln("Exiting...");
   methodName = oldMethodName;
   return result;
 }
@@ -810,6 +856,14 @@ void checkFWUpdate()
 {
   String oldMethodName = methodName;
   methodName = "checkFWUpdate()";
+
+  String imageID;
+  int code = webGet(latestFWImageIndexUrl, imageID);
+  sprintf(latestFirmwareFileName, "/firmware/%s_%s.bin", appName, imageID);
+
+  code = getlatestFirmware(latestFirmwareFileName);
+
+  doUpdateFirmware(latestFirmwareFileName);
 
   Log.infoln("Completed checking for FW updates.");
   xTimerDelete(checkFWUpdateTimer, 0);
