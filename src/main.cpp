@@ -23,57 +23,6 @@ extern "C"
 #include <Update.h>
 
 #include <TFT_eSPI.h>
-/*
-#define ST7796_DRIVER
-#define TFT_WIDTH 320
-#define TFT_HEIGHT 480
-#define TFT_MISO 12
-#define TFT_MOSI 13
-#define TFT_SCLK 14
-#define TFT_CS -1
-#define TFT_DC 0
-#define TFT_RST -1
-*/
-
-#define ST7796_DRIVER = 1
-#define TFT_WIDTH = 320
-#define TFT_HEIGHT = 480
-#define TFT_MISO = 12
-#define TFT_MOSI = 13
-#define TFT_SCLK = 14
-#define TFT_CS = 15
-#define TFT_DC = 2
-#define TFT_RST = -1
-#define TFT_BL = 27
-#define TFT_BACKLIGHT_ON = HIGH
-#define TOUCH_CS = 33
-#define LOAD_GLCD = 1
-#define LOAD_FONT2 = 1
-#define LOAD_FONT4 = 1
-#define LOAD_FONT6 = 1
-#define LOAD_FONT7 = 1
-#define LOAD_FONT8 = 1
-#define LOAD_GFXFF = 1
-#define SMOOTH_FONT = 1
-#define SPI_FREQUENCY = 40000000
-
-/*
-#define ILI9341_DRIVER
-#define TFT_WIDTH 240
-#define TFT_HEIGHT 320
-#define TFT_BL 21             // LED back-light control pin
-#define TFT_BACKLIGHT_ON HIGH // Level to turn ON back-light (HIGH or LOW)
-
-#define TFT_MISO 12
-#define TFT_MOSI 13 // In some display driver board, it might be written as "SDA" and so on.
-#define TFT_SCLK 14
-#define TFT_CS 15  // Chip select control pin
-#define TFT_DC 2   // Data Command control pin
-#define TFT_RST 12 // Reset pin (could connect to Arduino RESET pin)
-#define TFT_BL 21  // LED back-light
-
-#define TOUCH_CS 33 // Chip select pin (T_CS) of touch screen
-*/
 
 #include <HTTPClient.h>
 #include <AsyncMqttClient.h>
@@ -324,6 +273,7 @@ void setupDisplay()
   tft.fillScreen(TFT_BLACK);
   // delayMicroseconds(1000);
   tft.fillScreen(TFT_BLUE);
+  delayMicroseconds(500000);
   // delayMicroseconds(1000);
   tft.fillScreen(TFT_BLACK);
 
@@ -345,7 +295,7 @@ void initAppStrings()
   sprintf(idTopic, "%s/id", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
-  sprintf(fwUpdateUrl, "%s/%s/firmware",remoteUpdateUrl, appName);
+  sprintf(fwUpdateUrl, "%s/%s/firmware", remoteUpdateUrl, appName);
 
   sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 }
@@ -583,7 +533,7 @@ void doUpdateFirmware(char *fileName)
   Log.verboseln("Entering...");
 
   File file = SPIFFS.open(fileName);
-  
+
   if (!file)
   {
     Log.errorln("Failed to open file for reading");
@@ -618,7 +568,6 @@ void doUpdateFirmware(char *fileName)
   }
 
   file.close();
-
 
   Log.infoln("Reset in 2 seconds...");
   delay(2000);
@@ -757,7 +706,6 @@ void print_wakeup_reason()
     break;
   }
 }
-
 
 void setAppID()
 {
@@ -958,10 +906,7 @@ void setup()
   // pinMode(DOORBELL_PIN, INPUT);
   // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
 
-  Log.verboseln("MOSI: %i", MOSI);
-  Log.verboseln("MISO: %i", MISO);
-  Log.verboseln("SCK: %i", SCK);
-  Log.verboseln("SS: %i", SS);
+
 
   // This is connectivity setup code
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
@@ -1002,6 +947,7 @@ void loop()
   if ((millis() % 10000) == 0)
   {
     logTimestamp();
+    tft.fillScreen(TFT_RED);
   }
 }
 
