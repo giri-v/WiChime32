@@ -13,7 +13,14 @@ A basic framework for developing ESP32 based applications. The framework include
 2. Topic schema is {app_name}/{app_id}/Topic1/Topic2/.../Topic9 for incoming (command) messages
    - An special number/code will be reserved for the ALL {app_id} to which all instances shall respond
 3. Payload shall be text for a single payload parameter or JSON for payloads with multiple parameters
-
+4. Common Commands:
+   - Restart/Reboot
+   - Alive check, basic info
+   - Play Audio (with authorization token)
+#### Connectivity
+1. Support Wifi Connectivity - just configure SSID and password
+2. Restart device if Wifi disconnects more than 5 times in 10 seconds
+3. Connects to NTP Server
 #### Firmware Updates
 1. Instance will check a known server for updates
 2. Firmware image will be secured
@@ -22,3 +29,5 @@ A basic framework for developing ESP32 based applications. The framework include
 
 ### TODO
 1. Complete remote firmware update
+
+###

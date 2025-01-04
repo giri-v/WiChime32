@@ -115,13 +115,20 @@ uint8_t wifiAPMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
 uint8_t btMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
 uint8_t ethMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
 
+typedef void (*mqttMessageHandler)(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
+
 AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 TimerHandle_t checkFWUpdateTimer;
 TimerHandle_t appIDWaitTimer;
+TimerHandle_t wifiFailCountTimer;
 // WiFiEventHandler wifiConnectHandler;
 // WiFiEventHandler wifiDisconnectHandler;
+
+int wifiFailCount = 0;
+int maxWifiFailCount = 5;
+int wifiFailCountTimeLimit = 10;
 
 // MQTT Topics (25 character limit per level)
 char onlineTopic[100];
@@ -332,6 +339,20 @@ void connectToMqtt()
   methodName = oldMethodName;
 }
 
+void resetWifiFailCount(TimerHandle_t xTimer)
+{
+  String oldMethodName = methodName;
+  methodName = "resetWifiFailCount(TimerHandle_t xTimer)";
+  Log.verboseln("Entering...");
+
+  (void)xTimer;
+
+  wifiFailCount = 0;
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
 void onWifiConnect(const WiFiEvent_t &event)
 {
   String oldMethodName = methodName;
@@ -374,6 +395,18 @@ void onWifiDisconnect(const WiFiEvent_t &event)
   Log.infoln("Disconnecting mqttReconnectTimer");
   xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  if (wifiFailCount == 0)
+  {
+    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
+    xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit *1000));
+  }
+  wifiFailCount++;
+  if (wifiFailCount > maxWifiFailCount)
+  {
+    Log.errorln("Too many WiFi failures. Rebooting.");
+    esp_restart();
+  }
+
   Log.infoln("Reconnecting to WiFi...");
   xTimerStart(wifiReconnectTimer, 0);
   // wifiReconnectTimer.once(2, connectToWifi);
