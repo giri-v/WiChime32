@@ -30,7 +30,8 @@ extern "C"
 #include <ArduinoJson.h>
 
 #include <ArduinoLog.h>
-#define LOG_LEVEL LOG_LEVEL_INFO
+// #define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_VERBOSE
 #include <TLogPlus.h>
 
 #ifndef SECRETS_H
@@ -41,6 +42,9 @@ extern "C"
 
 #define WIFI_SSID "APName"
 #define WIFI_PASSWORD "APPassword"
+
+#define HTTP_SERVER "192.168.0.12"
+#define HTTP_PORT 5000
 
 #define MQTT_HOST IPAddress(192, 168, 0, 200)
 #define MQTT_PORT 1883
@@ -89,6 +93,7 @@ String methodName = "";
 // ********* App Parameters *****************
 const char *appName = APP_NAME;
 int appID = -1;
+int appVersion = 1;
 
 int volume = 50; // Volume is %
 int bootCount = 0;
@@ -100,7 +105,7 @@ Preferences preferences;
 
 // ********** Time/NTP Parameters **********
 const char *ntpServer = NTP_SERVER;
-const long gmtOffset_sec = -8*60*60;
+const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
 
 const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
@@ -139,7 +144,7 @@ char snapshotTopic[100];
 
 char appSubTopic[100];
 
-const char *remoteUpdateUrl = "http://192.168.0.12:5000/internal/iot";
+const char *remoteUpdateUrl = "http://192.168.0.12";
 
 // internal/iot/esp32FWApp/firmware
 
@@ -151,6 +156,7 @@ char latestFirmwareFileName[100];
 void loadPrefs();
 void storePrefs();
 void mqttPublishID();
+void checkFWUpdate();
 int myFunction(int, int);
 
 bool isNullorEmpty(char *str)
@@ -374,12 +380,12 @@ void onWifiConnect(const WiFiEvent_t &event)
   Log.infoln("Connected to Wi-Fi. IP address: %p", WiFi.localIP());
   Log.infoln("Connecting to NTP Server...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  //configTime(localTZ, ntpServer);
+  // configTime(localTZ, ntpServer);
   Log.infoln("Connected to NTP Server!");
 
   struct tm *timeinfo;
   char tim[20];
-  
+
   /*
   if (!getLocalTime(timeinfo))
   {
@@ -395,22 +401,23 @@ void onWifiConnect(const WiFiEvent_t &event)
 */
 
   time_t rawtime;
-  
+
   time(&rawtime);
   timeinfo = localtime(&rawtime);
-  
-  
 
-  strftime(tim, sizeof(tim), "%d/%m/%Y %H:%M:%S", timeinfo);
+  strftime(tim, sizeof(tim), "%m/%d/%Y %H:%M:%S", timeinfo);
 
   // bForecastChanged = true;
   Log.infoln("Local Time: %s", tim);
 
+  if (appID >= 0)
+  {
+    Log.infoln("Checking for FW updates...");
+    checkFWUpdate();
+  }
+
   Log.infoln("Connecting to MQTT Broker...");
   connectToMqtt();
-
-
-  //xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -431,7 +438,7 @@ void onWifiDisconnect(const WiFiEvent_t &event)
   if (wifiFailCount == 0)
   {
     wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
-    xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit *1000));
+    xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000));
   }
   wifiFailCount++;
   if (wifiFailCount > maxWifiFailCount)
@@ -595,10 +602,12 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
 void doUpdateFirmware(char *fileName)
 {
   String oldMethodName = methodName;
-  methodName = "onMqttMessage()";
+  methodName = "doUpdateFirmware(char *fileName)";
   Log.verboseln("Entering...");
 
-  File file = SPIFFS.open(fileName);
+  String fsFileName = "/" + String(fileName);
+
+  File file = SPIFFS.open(fsFileName);
 
   if (!file)
   {
@@ -810,29 +819,50 @@ int getlatestFirmware(char *fileName)
   HTTPClient http;
   String payload;
 
-  File f = SPIFFS.open(fileName, FILE_WRITE);
+  String fsFileName = "/" + String(fileName);
+
+  File f = SPIFFS.open(fsFileName, FILE_WRITE);
   if (f)
   {
-    http.begin(fwUpdateUrl);
-    httpCode = http.GET();
-    if (httpCode > 0)
-    {
-      if (httpCode == HTTP_CODE_OK)
+    Log.verboseln("[HTTP] begin...");
+
+    // int connRes = client.connect(IPAddress(192,168,0,12), 5000);
+    // Log.verboseln("Connected: %d", connRes);
+
+    // if (http.begin(client, req))
+    String url = String("/firmware/") + fileName;
+
+    if (http.begin(client, HTTP_SERVER, HTTP_PORT, url))
+    { // HTTP
+
+      Log.verboseln("[HTTP] GET...");
+      // start connection and send HTTP header
+      int httpCode = http.GET();
+      result = httpCode;
+      if (httpCode > 0)
       {
-        WiFiClient *stream = http.getStreamPtr();
-        while (stream->available())
+        if (httpCode == HTTP_CODE_OK)
         {
-          char c = stream->read();
-          f.print(c);
+          WiFiClient *stream = http.getStreamPtr();
+          while (stream->available())
+          {
+            char c = stream->read();
+            f.print(c);
+          }
         }
       }
+      else
+      {
+        Log.verboseln("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+      }
+
+      f.close();
+      http.end();
     }
     else
     {
-      Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+      Log.warningln("[HTTP] Unable to connect");
     }
-    f.close();
-    http.end();
   }
 
   Log.verboseln("Exiting...");
@@ -854,7 +884,11 @@ int webGet(String req, String &res)
   String payload;
   Log.verboseln("[HTTP] begin...");
 
-  if (http.begin(client, req))
+  // int connRes = client.connect(IPAddress(192,168,0,12), 5000);
+  // Log.verboseln("Connected: %d", connRes);
+
+  // if (http.begin(client, req))
+  if (http.begin(client, HTTP_SERVER, HTTP_PORT, "/firmware/"))
   { // HTTP
 
     Log.verboseln("[HTTP] GET...");
@@ -896,19 +930,47 @@ void checkFWUpdate()
   String oldMethodName = methodName;
   methodName = "checkFWUpdate()";
 
-  String imageID;
-  sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
-  Log.infoln("Checking for FW updates at...");
-  int code = webGet(latestFWImageIndexUrl, imageID);
-  sprintf(latestFirmwareFileName, "/firmware/%s_%s.bin", appName, imageID);
+  String fileList;
+  String server_req;
+  int latestFWImageIndex = appVersion;
+  sprintf(latestFWImageIndexUrl, "%s/index.html", remoteUpdateUrl);
+  Log.infoln("Checking for FW updates.");
+  server_req = latestFWImageIndexUrl;
+  int code = webGet(server_req, fileList);
 
-  code = getlatestFirmware(latestFirmwareFileName);
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, fileList);
+  for (size_t i = 0; i < doc.size(); i++)
+  {
+    String fn = doc[i]["name"];
+    if ((doc[i]["type"] == "file") && fn.startsWith(appName) && fn.endsWith(".bin"))
+    {
+      Log.verboseln("Got firmware file: %s", fn.c_str());
+      String findex = fn.substring(strlen(appName) + 1, fn.length() - 4);
+      int fidx = findex.toInt();
+      Log.verboseln("Got firmware index: %d", fidx);
+      latestFWImageIndex = max(latestFWImageIndex, fidx);
+    }
+  }
 
-  doUpdateFirmware(latestFirmwareFileName);
+  if (latestFWImageIndex > appVersion)
+  {
+    Log.infoln("New firmware available: v%d", latestFWImageIndex);
+    sprintf(latestFirmwareFileName, "%s_%d.bin", appName, latestFWImageIndex);
+    Log.infoln("Downloading %s", latestFirmwareFileName);
+    code = getlatestFirmware(latestFirmwareFileName);
+
+
+Log.infoln("Updating firmware...");
+    doUpdateFirmware(latestFirmwareFileName);
+  }
+  else
+  {
+    Log.infoln("No new firmware available.");
+  }
 
   Log.infoln("Completed checking for FW updates.");
-  xTimerDelete(checkFWUpdateTimer, 0);
-
+  
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
 }
@@ -956,15 +1018,31 @@ void setup()
   esp_base_mac_addr_get(macAddress);
   logMACAddress(macAddress);
 
-  Log.noticeln("Starting %s...", appName);
+  Log.noticeln("Starting %s v%d...", appName, appVersion);
+
   Log.verboseln("Entering ...");
 
   preferences.begin(appName, false);
   loadPrefs();
+  if (appID < 0)
+  {
+    Log.infoln("AppID not set yet.");
+  }
+  else
+  {
+    Log.infoln("AppID: %d", appID);
+  }
+
   bootCount++;
+
+  Log.infoln("Boot count: %d", bootCount);
+
   wakeup_reason = esp_sleep_get_wakeup_cause();
   reset_reason = esp_reset_reason();
-  // initFS();
+  print_wakeup_reason();
+
+
+  initFS();
 
   setupDisplay();
 
@@ -975,8 +1053,6 @@ void setup()
   Log.infoln("Configuring hardware.");
   // pinMode(DOORBELL_PIN, INPUT);
   // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
-
-
 
   // This is connectivity setup code
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
@@ -994,8 +1070,8 @@ void setup()
   if (appID >= 0)
   {
     mqttClient.onMessage(onMqttMessage);
-    checkFWUpdateTimer = xTimerCreate("checkFWUpdateTimer", pdMS_TO_TICKS(5000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(checkFWUpdate));
-    //xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
+    // checkFWUpdateTimer = xTimerCreate("checkFWUpdateTimer", pdMS_TO_TICKS(1000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(checkFWUpdate));
+    //  xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
   }
   else
   {
