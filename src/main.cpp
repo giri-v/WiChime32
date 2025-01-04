@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <time.h>
 
 extern "C"
 {
@@ -99,7 +100,7 @@ Preferences preferences;
 
 // ********** Time/NTP Parameters **********
 const char *ntpServer = NTP_SERVER;
-const long gmtOffset_sec = 0;
+const long gmtOffset_sec = -8*60*60;
 const int daylightOffset_sec = 3600;
 
 const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
@@ -138,7 +139,9 @@ char snapshotTopic[100];
 
 char appSubTopic[100];
 
-const char *remoteUpdateUrl = "http://192.168.0.12/internal/iot";
+const char *remoteUpdateUrl = "http://192.168.0.12:5000/internal/iot";
+
+// internal/iot/esp32FWApp/firmware
 
 char fwUpdateUrl[200];
 char latestFWImageIndexUrl[200];
@@ -207,6 +210,10 @@ void storePrefs()
 
 void logTimestamp()
 {
+  String oldMethodName = methodName;
+  methodName = "logTimestamp()";
+  Log.verboseln("Entering...");
+
   char c[20];
   time_t rawtime;
   struct tm *timeinfo;
@@ -223,6 +230,9 @@ void logTimestamp()
   }
 
   Log.infoln("Time: %s", c);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
 }
 
 void printTimestamp(Print *_logOutput, int x)
@@ -302,7 +312,7 @@ void initAppStrings()
   sprintf(idTopic, "%s/id", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
-  sprintf(fwUpdateUrl, "%s/%s/firmware", remoteUpdateUrl, appName);
+  sprintf(fwUpdateUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 
   sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 }
@@ -364,20 +374,43 @@ void onWifiConnect(const WiFiEvent_t &event)
   Log.infoln("Connected to Wi-Fi. IP address: %p", WiFi.localIP());
   Log.infoln("Connecting to NTP Server...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  // configTime(localTZ, ntpServer);
+  //configTime(localTZ, ntpServer);
   Log.infoln("Connected to NTP Server!");
-  time_t rawtime;
+
   struct tm *timeinfo;
+  char tim[20];
+  
+  /*
+  if (!getLocalTime(timeinfo))
+  {
+    Log.errorln("Failed to obtain time.");
+    return;
+  }
+  else
+  {
+    Log.infoln("Local Time: %s", asctime(timeinfo));
+    strftime(tim, sizeof(tim), "%d/%m/%Y %H:%M:%S", timeinfo);
+    Log.infoln("Local Time: %s", tim);
+  }
+*/
+
+  time_t rawtime;
+  
   time(&rawtime);
   timeinfo = localtime(&rawtime);
-  char tim[20];
-  strftime(tim, 20, "%d/%m/%Y %H:%M:%S", timeinfo);
+  
+  
+
+  strftime(tim, sizeof(tim), "%d/%m/%Y %H:%M:%S", timeinfo);
 
   // bForecastChanged = true;
   Log.infoln("Local Time: %s", tim);
 
   Log.infoln("Connecting to MQTT Broker...");
   connectToMqtt();
+
+
+  //xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -814,6 +847,8 @@ int webGet(String req, String &res)
 
   int result = -1;
 
+  Log.infoln("Connecting to %s", req.c_str());
+
   WiFiClient client;
   HTTPClient http;
   String payload;
@@ -862,6 +897,8 @@ void checkFWUpdate()
   methodName = "checkFWUpdate()";
 
   String imageID;
+  sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
+  Log.infoln("Checking for FW updates at...");
   int code = webGet(latestFWImageIndexUrl, imageID);
   sprintf(latestFirmwareFileName, "/firmware/%s_%s.bin", appName, imageID);
 
@@ -958,6 +995,7 @@ void setup()
   {
     mqttClient.onMessage(onMqttMessage);
     checkFWUpdateTimer = xTimerCreate("checkFWUpdateTimer", pdMS_TO_TICKS(5000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(checkFWUpdate));
+    //xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
   }
   else
   {
