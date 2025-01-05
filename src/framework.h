@@ -125,4 +125,14 @@ bool isNullorEmpty(String str)
     return isNullorEmpty(str.c_str());
 }
 
+// check a string to see if it is numeric
+bool isNumeric(char *str)
+{
+    for (byte i = 0; str[i]; i++)
+    {
+        if (!isDigit(str[i]))
+            return false;
+    }
+    return true;
+}
 #endif // FRAMEWORK_H

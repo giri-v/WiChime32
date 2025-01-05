@@ -63,12 +63,21 @@ const char *appRootUrl = "/internal/iot/";
 int otherAppTopicCount = 0;
 char otherAppTopic[10][25];
 void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
-// WiFiEventHandler wifiConnectHandler;
-// WiFiEventHandler wifiDisconnectHandler;
 
-// put function declarations here:
 
-// void mqttPublishID();
+// ************ Customizeable Functions *************
+void printTimestamp(Print *_logOutput, int x);
+void logTimestamp();
+void storePrefs();
+void loadPrefs();
+void setAppInstanceID();
+void ProcessMqttDisconnectTasks();
+void ProcessMqttConnectTasks();
+void ProcessWifiDisconnectTasks();
+void ProcessWifiConnectTasks();
+void appMessageHandler(char *topic, JsonDocument &doc);
+void setupDisplay();
+void initAppStrings();
 
 // ********** Function Declarations **********
 void initFS();
@@ -92,106 +101,6 @@ void setAppInstanceID();
 
 
 
-// ************ Customizeable Functions *************
-
-
-
-
-
-
-
-
-
-void loadPrefs()
-{
-  String oldMethodName = methodName;
-  methodName = "loadPrefs()";
-  Log.verboseln("Entering...");
-
-  bool doesExist = preferences.isKey("appInstanceID");
-  if (doesExist)
-  {
-    Log.infoln("Loading settings.");
-    appInstanceID = preferences.getInt("appInstanceID");
-    volume = preferences.getInt("Volume");
-    bootCount = preferences.getInt("BootCount");
-    // enableSnapshot = preferences.getBool("EnableSnapshot");
-  }
-  else
-  {
-    Log.warningln("Could not find Preferences!");
-    Log.noticeln("appInstanceID not set yet!");
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void storePrefs()
-{
-  String oldMethodName = methodName;
-  methodName = "storePrefs()";
-  Log.verboseln("Entering...");
-
-  Log.infoln("Storing Preferences.");
-
-  preferences.putInt("appInstanceID", appInstanceID);
-  preferences.putInt("Volume", volume);
-  preferences.putInt("BootCount", bootCount);
-  // preferences.putBool("EnableSnapshot", enableSnapshot);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logTimestamp()
-{
-  String oldMethodName = methodName;
-  methodName = "logTimestamp()";
-  Log.verboseln("Entering...");
-
-  char c[20];
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  if (timeinfo->tm_year == 70)
-  {
-    sprintf(c, "%10lu ", millis());
-  }
-  else
-  {
-    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
-  }
-
-  Log.infoln("Time: %s", c);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void printTimestamp(Print *_logOutput, int x)
-{
-  char c[20];
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  if (timeinfo->tm_year == 70)
-  {
-    sprintf(c, "%10lu ", millis());
-  }
-  else
-  {
-    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
-  }
-  _logOutput->print(c);
-  _logOutput->print(": ");
-  _logOutput->print(methodName);
-  _logOutput->print(": ");
-}
 
 void initFS()
 {
@@ -214,40 +123,6 @@ void initFS()
 #endif
 }
 
-void setupDisplay()
-{
-  String oldMethodName = methodName;
-  methodName = "setupDisplay()";
-  Log.verboseln("Entering");
-
-  Log.infoln("Setting up display.");
-  tft.init();
-  tft.setRotation(2);
-  tft.fillScreen(TFT_BLACK);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLUE);
-  delayMicroseconds(500000);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLACK);
-
-  // tft.setFont(baseFont);
-
-  tft.setTextFont(7);
-  tft.setTextSize(1);
-
-  tft.setTextDatum(BC_DATUM);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void initAppStrings()
-{
-  sprintf(onlineTopic, "%s/online", appName);
-  sprintf(willTopic, "%s/offline", appName);
-
-  sprintf(appSubTopic, "%s/#", appName);
-}
 
 void connectToWifi()
 {
@@ -496,46 +371,6 @@ void checkFWUpdate()
   {
     Log.infoln("No new firmware available.");
   }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void ProcessWifiConnectTasks()
-{
-  String oldMethodName = methodName;
-  methodName = "ProcessAppWifiConnectTasks()";
-  Log.verboseln("Entering...");
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void ProcessWifiDisconnectTasks()
-{
-  String oldMethodName = methodName;
-  methodName = "ProcessAppWifiDisconnectTasks()";
-  Log.verboseln("Entering...");
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void ProcessMqttConnectTasks()
-{
-  String oldMethodName = methodName;
-  methodName = "ProcessMqttConnectTasks()";
-  Log.verboseln("Entering...");
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void ProcessMqttDisconnectTasks()
-{
-  String oldMethodName = methodName;
-  methodName = "ProcessMqttDisconnectTasks()";
-  Log.verboseln("Entering...");
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -792,16 +627,7 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
   methodName = oldMethodName;
 }
 
-// check a string to see if it is numeric
-bool isNumeric(char *str)
-{
-  for (byte i = 0; str[i]; i++)
-  {
-    if (!isDigit(str[i]))
-      return false;
-  }
-  return true;
-}
+
 
 bool checkMessageForAppSecret(JsonDocument &doc)
 {
@@ -817,31 +643,6 @@ bool checkMessageForAppSecret(JsonDocument &doc)
   else
     Log.verboseln("Did not get appSecret");
   return false;
-}
-
-void appMessageHandler(char *topic, JsonDocument &doc)
-{
-  String oldMethodName = methodName;
-  methodName = "appMessageHandler()";
-  Log.verboseln("Entering...");
-
-  // Add your implementation here
-  char topics[10][25];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while ((token != NULL) && (topicCounter < 11))
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  // We can assume the first 2 subtopics are the appName and the appInstanceID
-  // The rest of the subtopics are the command
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-  return;
 }
 
 void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
@@ -914,7 +715,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     }
     else
     { // This is not a properly formatted command (might be a response)
-      Log.errorln("Invalid command target ID.");
+      Log.infoln("Not a command. No appInstanceID in subtopic #2. Could be our response. Ignoring...");
     }
   }
   else
@@ -985,6 +786,113 @@ void print_wakeup_reason()
   }
 }
 
+
+
+
+
+//////////////////////////////////////////
+//// Customizable Functions
+//////////////////////////////////////////
+void setupDisplay()
+{
+  String oldMethodName = methodName;
+  methodName = "setupDisplay()";
+  Log.verboseln("Entering");
+
+  Log.infoln("Setting up display.");
+  tft.init();
+  tft.setRotation(2);
+  tft.fillScreen(TFT_BLACK);
+  // delayMicroseconds(1000);
+  tft.fillScreen(TFT_BLUE);
+  delayMicroseconds(500000);
+  // delayMicroseconds(1000);
+  tft.fillScreen(TFT_BLACK);
+
+  // tft.setFont(baseFont);
+
+  tft.setTextFont(7);
+  tft.setTextSize(1);
+
+  tft.setTextDatum(BC_DATUM);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void initAppStrings()
+{
+  sprintf(onlineTopic, "%s/online", appName);
+  sprintf(willTopic, "%s/offline", appName);
+
+  sprintf(appSubTopic, "%s/#", appName);
+}
+
+void ProcessWifiConnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessAppWifiConnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessWifiDisconnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessAppWifiDisconnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessMqttConnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessMqttConnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessMqttDisconnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessMqttDisconnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void appMessageHandler(char *topic, JsonDocument &doc)
+{
+  String oldMethodName = methodName;
+  methodName = "appMessageHandler()";
+  Log.verboseln("Entering...");
+
+  // Add your implementation here
+  char topics[10][25];
+  int topicCounter = 0;
+  char *token = strtok(topic, "/");
+
+  while ((token != NULL) && (topicCounter < 11))
+  {
+    strcpy(topics[topicCounter++], token);
+    token = strtok(NULL, "/");
+  }
+
+  // We can assume the first 2 subtopics are the appName and the appInstanceID
+  // The rest of the subtopics are the command
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+  return;
+}
+
 void setAppInstanceID()
 {
   String oldMethodName = methodName;
@@ -999,6 +907,97 @@ void setAppInstanceID()
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
+}
+
+void loadPrefs()
+{
+  String oldMethodName = methodName;
+  methodName = "loadPrefs()";
+  Log.verboseln("Entering...");
+
+  bool doesExist = preferences.isKey("appInstanceID");
+  if (doesExist)
+  {
+    Log.infoln("Loading settings.");
+    appInstanceID = preferences.getInt("appInstanceID");
+    volume = preferences.getInt("Volume");
+    bootCount = preferences.getInt("BootCount");
+    // enableSnapshot = preferences.getBool("EnableSnapshot");
+  }
+  else
+  {
+    Log.warningln("Could not find Preferences!");
+    Log.noticeln("appInstanceID not set yet!");
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void storePrefs()
+{
+  String oldMethodName = methodName;
+  methodName = "storePrefs()";
+  Log.verboseln("Entering...");
+
+  Log.infoln("Storing Preferences.");
+
+  preferences.putInt("appInstanceID", appInstanceID);
+  preferences.putInt("Volume", volume);
+  preferences.putInt("BootCount", bootCount);
+  // preferences.putBool("EnableSnapshot", enableSnapshot);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void logTimestamp()
+{
+  String oldMethodName = methodName;
+  methodName = "logTimestamp()";
+  Log.verboseln("Entering...");
+
+  char c[20];
+  time_t rawtime;
+  struct tm *timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  if (timeinfo->tm_year == 70)
+  {
+    sprintf(c, "%10lu ", millis());
+  }
+  else
+  {
+    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
+  }
+
+  Log.infoln("Time: %s", c);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void printTimestamp(Print *_logOutput, int x)
+{
+  char c[20];
+  time_t rawtime;
+  struct tm *timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  if (timeinfo->tm_year == 70)
+  {
+    sprintf(c, "%10lu ", millis());
+  }
+  else
+  {
+    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
+  }
+  _logOutput->print(c);
+  _logOutput->print(": ");
+  _logOutput->print(methodName);
+  _logOutput->print(": ");
 }
 
 IRAM_ATTR void interruptService()
