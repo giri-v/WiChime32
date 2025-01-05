@@ -41,12 +41,10 @@ const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 int fontNum = 0;
 bool isFirstLoop = true;
 
-// ********** Time/NTP Parameters **********
-
+// For US Pacific Time Zone
+const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
-
-const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 
 // ********** Connectivity Parameters **********
 
