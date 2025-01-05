@@ -1,3 +1,14 @@
+
+#define APP_NAME "esp32FWApp"
+#include <secrets.h>
+
+// #define TELNET_LOGGING
+// #define WEBSTREAM_LOGGING
+// #define SYSLOG_LOGGING
+// #define MQTT_LOGGING
+
+
+// *************** Possible Framework Start
 #include <Arduino.h>
 #include <time.h>
 
@@ -7,10 +18,7 @@ extern "C"
 #include "freertos/timers.h"
 }
 
-#define APP_NAME "esp32FWApp"
 
-#include <secrets.h>
-// #define TELNET_LOGGING
 
 #include <WiFi.h>
 #include <Preferences.h>
@@ -30,29 +38,11 @@ extern "C"
 #include <ArduinoJson.h>
 
 #include <ArduinoLog.h>
-#define LOG_LEVEL LOG_LEVEL_INFO
-// #define LOG_LEVEL LOG_LEVEL_VERBOSE
+// #define LOG_LEVEL LOG_LEVEL_INFO
+#define LOG_LEVEL LOG_LEVEL_VERBOSE
 #include <TLogPlus.h>
 
-#ifndef SECRETS_H
-#define SECRETS_H
 
-#define HOSTNAME "myESP8266";
-#define NTP_SERVER "pool.ntp.org"
-
-#define WIFI_SSID "APName"
-#define WIFI_PASSWORD "APPassword"
-
-#define HTTP_SERVER "192.168.0.12"
-#define HTTP_PORT 5000
-
-#define MQTT_HOST IPAddress(192, 168, 0, 200)
-#define MQTT_PORT 1883
-
-#define LATITUDE 37.3380937
-#define LONGITUDE -121.8853892
-
-#endif // SECRETS_H
 
 // using namespace TLogPlus;
 
@@ -76,12 +66,37 @@ SyslogStream syslogStream = SyslogStream();
 
 #ifdef MQTT_LOGGING
 #include <MqttlogStream.h>
+#include "main.h"
 using namespace TLogPlusStream;
 // EthernetClient client;
 WiFiClient client;
 MqttStream mqttStream = MqttStream(&client);
 char topic[128] = "log/foo";
 #endif
+
+// *************** Possible Framework End
+
+
+#ifndef SECRETS_H
+#define SECRETS_H
+
+#define HOSTNAME "myESP8266";
+#define NTP_SERVER "pool.ntp.org"
+
+#define WIFI_SSID "APName"
+#define WIFI_PASSWORD "APPassword"
+
+#define HTTP_SERVER "192.168.0.12"
+#define HTTP_PORT 5000
+
+#define MQTT_HOST IPAddress(192, 168, 0, 200)
+#define MQTT_PORT 1883
+
+#define LATITUDE 37.3380937
+#define LONGITUDE -121.8853892
+
+#endif                     // SECRETS_H
+
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 
@@ -94,6 +109,7 @@ String methodName = "";
 const char *appName = APP_NAME;
 int appID = -1;
 int appVersion = 1;
+const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
 int volume = 50; // Volume is %
 int bootCount = 0;
@@ -144,13 +160,21 @@ char snapshotTopic[100];
 
 char appSubTopic[100];
 
-const char *remoteUpdateUrl = "http://192.168.0.12";
+// ********** App Global Variables **********
+
 
 // internal/iot/esp32FWApp/firmware
 
 char fwUpdateUrl[200];
 char latestFWImageIndexUrl[200];
 char latestFirmwareFileName[100];
+
+
+// ********** Possible Customizations Start ***********
+
+int otherAppTopicCount = 0;
+char otherAppTopic[10][25];
+void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
 
 // put function declarations here:
 void loadPrefs();
@@ -318,9 +342,7 @@ void initAppStrings()
   sprintf(idTopic, "%s/id", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
-  sprintf(fwUpdateUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 
-  sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
 }
 
 void initAppInstanceStrings()
@@ -552,7 +574,11 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void logMQTTMessage(char *topic, int len, char *payload)
 {
-  Log.infoln("[%s] {%s} ", topic, payload);
+  char msg[len + 1];
+  memcpy(msg, payload, len);
+  msg[len] = 0;
+
+  Log.verboseln("[%s] {%s} ", topic, msg);
 }
 
 void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
@@ -647,6 +673,48 @@ bool isNumeric(char *str)
   return true;
 }
 
+bool checkMessageForAppSecret(JsonDocument &doc)
+{
+  if (doc["appSecret"].is<const char *>())
+  {
+    if (doc["appSecret"] == appSecret)
+    {
+      Log.verboseln("Got appSecret");
+      return true;
+    }
+    Log.verboseln("Got appSecret but it is wrong.");
+  }
+  else
+   Log.verboseln("Did not get appSecret");
+  return false;
+}
+
+void appMessageHandler(char *topic, JsonDocument &doc)
+{
+  String oldMethodName = methodName;
+  methodName = "appMessageHandler()";
+  Log.verboseln("Entering...");
+
+  // Add your implementation here
+  char topics[10][25];
+  int topicCounter = 0;
+  char *token = strtok(topic, "/");
+
+  while ((token != NULL) && (topicCounter < 11))
+  {
+    strcpy(topics[topicCounter++], token);
+    token = strtok(NULL, "/");
+  }
+
+  // We can assume the first 2 subtopics are the appName and the appID
+  // The rest of the subtopics are the command
+
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+  return;
+}
+
 void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
   String oldMethodName = methodName;
@@ -655,9 +723,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
   logMQTTMessage(topic, len, payload);
 
-  return;
-
-  char *topics[10];
+  char topics[10][25];
   int topicCounter = 0;
   char *token = strtok(topic, "/");
 
@@ -670,50 +736,85 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
   if (topicCounter > 10)
   {
     Log.noticeln("MQTT Topic has > 10 levels.");
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
     return;
   }
 
+  Log.verboseln("Processing MQTT message...");
   if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
   {
     // Handle all messages for our App (AppName is in topic #1)
+    Log.infoln("Got our topic");
+
+    // Check for appSecret
     if (isNumeric(topics[1]))
     {
-      // This is a command because there is an AppID in topic #2
-      int cmdTargetID = atoi(topics[1]);
-      if (cmdTargetID == appID)
-      { // This command is for us (AppID == our appID)
+      char msg[len + 1];
+      memcpy(msg, payload, len);
+      msg[len] = 0;
+
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, msg);
+
+      // Test if parsing succeeds.
+      if (!error)
+      {
+        if (checkMessageForAppSecret(doc))
+        {
+          // This is a command because there is an AppID in topic #2
+          int cmdTargetID = atoi(topics[1]);
+          if ((cmdTargetID == appID) || (cmdTargetID == -1))
+          { // This command is for us (AppID == our appID or ALL appID)
+            appMessageHandler(topic, doc);
+          }
+          else
+          { // This command is for another instance
+          }
+        }
+        else
+        {
+          Log.errorln("AppSecret not found in message!");
+        }
       }
       else
-      { // This command is for another instance
+      {
+        Log.errorln("deserializeJson() failed: %s", error.c_str());
       }
     }
     else
-    { // This is not a command
+    { // This is not a properly formatted command (might be a response)
+      Log.errorln("Invalid command target ID.");
     }
   }
-  else if (strcmp(topic, "otherThingTopic") == 0)
+  else
   {
-    // This is another App's message we are interested in
-    Log.infoln("Got CallerID topic");
-
-    char msg[len + 1];
-    memcpy(msg, payload, len);
-    msg[len] = 0;
-    logMQTTMessage(topic, len, msg);
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, msg);
-
-    // Test if parsing succeeds.
-    if (error)
+    for (int i = 0; i < otherAppTopicCount; i++)
     {
-      Log.errorln("deserializeJson() failed: %s", error.c_str());
+      if (strcmp(topics[i], "otherAppTopic") == 0)
+      {
+        // This is another App's message we are interested in
+        Log.infoln("Got otherThing topic");
+
+        char msg[len + 1];
+        memcpy(msg, payload, len);
+        msg[len] = 0;
+
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, msg);
+
+        // Test if parsing succeeds.
+        if (!error)
+        {
+          otherAppMessageHandler[i](topic, doc);
+        }
+        else
+        {
+          Log.errorln("deserializeJson() failed: %s", error.c_str());
+        }
+      }
     }
-    else
-    {
-    }
-  }
-  else // This is an unhandled topic
-  {
   }
 
   Log.verboseln("Exiting...");
