@@ -84,19 +84,23 @@ void onWifiDisconnect(const WiFiEvent_t &event);
 void WiFiEvent(WiFiEvent_t event);
 void mqttPublishWill();
 void mqttPublishID();
+bool isNumeric(char *str);
+bool checkMessageForAppSecret(JsonDocument &doc);
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
+void logMACAddress(uint8_t baseMac[6]);
+void setAppInstanceID();
 
-bool isNullorEmpty(char *str)
-{
-  if ((str == NULL) || (str[0] == '\0'))
-    return true;
-  else
-    return false;
-}
 
-bool isNullorEmpty(String str)
-{
-  return isNullorEmpty(str.c_str());
-}
+
+// ************ Customizeable Functions *************
+
+
+
+
+
+
+
+
 
 void loadPrefs()
 {
@@ -993,15 +997,6 @@ void setAppInstanceID()
   Log.infoln("Got appInstanceID, restarting...");
   esp_restart();
 
-  /*
-    mqttPublishID();
-    Log.infoln("About to change onMessage handler.");
-    mqttClient.onMessage(NULL);
-    Log.infoln("Changed onMessage handler to NULL.");
-    mqttClient.onMessage(onMqttMessage);
-    Log.infoln("Changed onMessage handler.");
-    xTimerDelete(appInstanceIDWaitTimer, 0);
-  */
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
 }

@@ -112,7 +112,17 @@ char appSubTopic[100];
 
 char latestFirmwareFileName[100];
 
+bool isNullorEmpty(char *str)
+{
+    if ((str == NULL) || (str[0] == '\0'))
+        return true;
+    else
+        return false;
+}
 
-
+bool isNullorEmpty(String str)
+{
+    return isNullorEmpty(str.c_str());
+}
 
 #endif // FRAMEWORK_H
