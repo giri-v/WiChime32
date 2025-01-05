@@ -21,7 +21,6 @@
 
 #endif // SECRETS_H
 
-
 // #define TELNET_LOGGING
 // #define WEBSTREAM_LOGGING
 // #define SYSLOG_LOGGING
@@ -39,8 +38,6 @@ String methodName = "";
 int appVersion = 1;
 const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
-
-
 // ********** Time/NTP Parameters **********
 
 const long gmtOffset_sec = -8 * 60 * 60;
@@ -50,22 +47,16 @@ const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 
 // ********** Connectivity Parameters **********
 
-
 typedef void (*mqttMessageHandler)(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
 
 int maxWifiFailCount = 5;
 int wifiFailCountTimeLimit = 10;
 
-
-
 // ********** App Global Variables **********
-
 
 // Should be /internal/iot/firmware
 const char *firmwareUrl = "/firmware/";
 const char *appRootUrl = "/internal/iot/";
-
-
 
 // ********** Possible Customizations Start ***********
 
@@ -77,12 +68,22 @@ void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
 
 // put function declarations here:
 
-//void mqttPublishID();
+// void mqttPublishID();
 
 // ********** Function Declarations **********
 void initFS();
-
-
+void connectToWifi();
+void connectToMqtt();
+void resetWifiFailCount(TimerHandle_t xTimer);
+void doUpdateFirmware(char *fileName);
+int getlatestFirmware(char *fileName);
+int webGet(String req, String &res);
+void checkFWUpdate();
+void onWifiConnect(const WiFiEvent_t &event);
+void onWifiDisconnect(const WiFiEvent_t &event);
+void WiFiEvent(WiFiEvent_t event);
+void mqttPublishWill();
+void mqttPublishID();
 
 bool isNullorEmpty(char *str)
 {
@@ -209,7 +210,6 @@ void initFS()
 #endif
 }
 
-
 void setupDisplay()
 {
   String oldMethodName = methodName;
@@ -243,7 +243,6 @@ void initAppStrings()
   sprintf(willTopic, "%s/offline", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
-
 }
 
 void connectToWifi()
@@ -498,6 +497,46 @@ void checkFWUpdate()
   methodName = oldMethodName;
 }
 
+void ProcessWifiConnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessAppWifiConnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessWifiDisconnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessAppWifiDisconnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessMqttConnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessMqttConnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void ProcessMqttDisconnectTasks()
+{
+  String oldMethodName = methodName;
+  methodName = "ProcessMqttDisconnectTasks()";
+  Log.verboseln("Entering...");
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
 void onWifiConnect(const WiFiEvent_t &event)
 {
   String oldMethodName = methodName;
@@ -534,6 +573,8 @@ void onWifiConnect(const WiFiEvent_t &event)
   Log.infoln("Connecting to MQTT Broker...");
   connectToMqtt();
 
+  ProcessWifiConnectTasks();
+
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
 }
@@ -547,6 +588,7 @@ void onWifiDisconnect(const WiFiEvent_t &event)
   (void)event;
 
   Log.infoln("Disconnected from Wi-Fi.");
+  ProcessWifiDisconnectTasks();
   Log.infoln("Disconnecting mqttReconnectTimer");
   xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
@@ -605,10 +647,11 @@ void mqttPublishID()
   methodName = "mqttPublishID()";
   Log.verboseln("Entering...");
 
-  char onlineTopic[20];
-  char payloadJson[20];
+  char onlineTopic[51];
+  char payloadJson[100];
   sprintf(onlineTopic, "%s/online", appName);
-  sprintf(payloadJson, "%i", appInstanceID);
+  sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" }", appInstanceID);
+
   Log.infoln("Published %s topic", onlineTopic);
   int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
 
@@ -649,7 +692,10 @@ void onMqttConnect(bool sessionPresent)
     Log.errorln("Failed to subscribe to %s!!!", appSubTopic);
 
   if (appInstanceID > -1)
+  {
     mqttPublishID();
+    ProcessMqttConnectTasks();
+  }
   else
   {
     // mqttClient.publish(idTopic, 1, false);
@@ -670,6 +716,8 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
   Log.warningln("Disconnected from MQTT.");
 
+  ProcessMqttDisconnectTasks();
+
   if (WiFi.isConnected())
   {
     xTimerStart(mqttReconnectTimer, 0);
@@ -685,7 +733,7 @@ void logMQTTMessage(char *topic, int len, char *payload)
   memcpy(msg, payload, len);
   msg[len] = 0;
 
-  Log.verboseln("[%s] {%s} ", topic, msg);
+  Log.verboseln("[%s] %s", topic, msg);
 }
 
 void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
@@ -708,7 +756,29 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
   {
     if ((strstr(topic, "offline") != NULL) || (strstr(topic, "online") != NULL))
     {
-      int otherIndex = atoi(payload);
+      int otherIndex = -1;
+      // TODO: Load into JsonDocument to extract appInstanceID
+      char msg[len + 1];
+      memcpy(msg, payload, len);
+      msg[len] = 0;
+
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, msg);
+
+      // Test if parsing succeeds.
+      if (!error)
+      {
+        if (doc["appInstanceID"].is<int>())
+        {
+          otherIndex = doc["appInstanceID"];
+          Log.infoln("Got appInstanceID: %d", otherIndex);
+        }
+      }
+      else
+      {
+        Log.errorln("deserializeJson() failed: %s", error.c_str());
+      }
+
       if (otherIndex >= 0)
         maxOtherIndex = max(maxOtherIndex, otherIndex);
     }
@@ -741,7 +811,7 @@ bool checkMessageForAppSecret(JsonDocument &doc)
     Log.verboseln("Got appSecret but it is wrong.");
   }
   else
-   Log.verboseln("Did not get appSecret");
+    Log.verboseln("Did not get appSecret");
   return false;
 }
 
@@ -764,7 +834,6 @@ void appMessageHandler(char *topic, JsonDocument &doc)
 
   // We can assume the first 2 subtopics are the appName and the appInstanceID
   // The rest of the subtopics are the command
-
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
