@@ -38,6 +38,9 @@ String methodName = "";
 int appVersion = 1;
 const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
+int fontNum = 0;
+bool isFirstLoop = true;
+
 // ********** Time/NTP Parameters **********
 
 const long gmtOffset_sec = -8 * 60 * 60;
@@ -803,18 +806,12 @@ void setupDisplay()
   tft.init();
   tft.setRotation(2);
   tft.fillScreen(TFT_BLACK);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLUE);
-  delayMicroseconds(500000);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLACK);
+  tft.setTextFont(fontNum++);
+  tft.setTextSize(2);
 
-  // tft.setFont(baseFont);
+  tft.setTextDatum(MC_DATUM);
 
-  tft.setTextFont(7);
-  tft.setTextSize(1);
-
-  tft.setTextDatum(BC_DATUM);
+  tft.drawString(appName, tft.width() / 2, tft.height() / 2);
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -1116,6 +1113,16 @@ void loop()
   if ((millis() % 10000) == 0)
   {
     logTimestamp();
-    tft.fillScreen(TFT_RED);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextFont(fontNum++);
+    if (fontNum > 7)
+      fontNum = 0;
+    tft.drawString(appName, tft.width() / 2, tft.height() / 2);
+  }
+
+  if (isFirstLoop)
+  {
+    isFirstLoop = false;
+    Log.infoln("First loop done.");
   }
 }
