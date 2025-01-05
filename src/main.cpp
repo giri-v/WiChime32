@@ -30,8 +30,8 @@ extern "C"
 #include <ArduinoJson.h>
 
 #include <ArduinoLog.h>
-// #define LOG_LEVEL LOG_LEVEL_INFO
-#define LOG_LEVEL LOG_LEVEL_VERBOSE
+#define LOG_LEVEL LOG_LEVEL_INFO
+// #define LOG_LEVEL LOG_LEVEL_VERBOSE
 #include <TLogPlus.h>
 
 #ifndef SECRETS_H
@@ -385,20 +385,6 @@ void onWifiConnect(const WiFiEvent_t &event)
 
   struct tm *timeinfo;
   char tim[20];
-
-  /*
-  if (!getLocalTime(timeinfo))
-  {
-    Log.errorln("Failed to obtain time.");
-    return;
-  }
-  else
-  {
-    Log.infoln("Local Time: %s", asctime(timeinfo));
-    strftime(tim, sizeof(tim), "%d/%m/%Y %H:%M:%S", timeinfo);
-    Log.infoln("Local Time: %s", tim);
-  }
-*/
 
   time_t rawtime;
 
@@ -877,7 +863,7 @@ int webGet(String req, String &res)
 
   int result = -1;
 
-  Log.infoln("Connecting to %s", req.c_str());
+  Log.verboseln("Connecting to http://%s:%d%s", HTTP_SERVER, HTTP_PORT, req.c_str());
 
   WiFiClient client;
   HTTPClient http;
@@ -888,7 +874,7 @@ int webGet(String req, String &res)
   // Log.verboseln("Connected: %d", connRes);
 
   // if (http.begin(client, req))
-  if (http.begin(client, HTTP_SERVER, HTTP_PORT, "/firmware/"))
+  if (http.begin(client, HTTP_SERVER, HTTP_PORT, req))
   { // HTTP
 
     Log.verboseln("[HTTP] GET...");
@@ -933,10 +919,9 @@ void checkFWUpdate()
   String fileList;
   String server_req;
   int latestFWImageIndex = appVersion;
-  sprintf(latestFWImageIndexUrl, "%s/index.html", remoteUpdateUrl);
+  sprintf(latestFWImageIndexUrl, "/firmware/");
   Log.infoln("Checking for FW updates.");
-  server_req = latestFWImageIndexUrl;
-  int code = webGet(server_req, fileList);
+  int code = webGet(latestFWImageIndexUrl, fileList);
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, fileList);
@@ -960,8 +945,7 @@ void checkFWUpdate()
     Log.infoln("Downloading %s", latestFirmwareFileName);
     code = getlatestFirmware(latestFirmwareFileName);
 
-
-Log.infoln("Updating firmware...");
+    Log.infoln("Updating firmware...");
     doUpdateFirmware(latestFirmwareFileName);
   }
   else
@@ -969,8 +953,6 @@ Log.infoln("Updating firmware...");
     Log.infoln("No new firmware available.");
   }
 
-  Log.infoln("Completed checking for FW updates.");
-  
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
 }
@@ -1041,7 +1023,6 @@ void setup()
   reset_reason = esp_reset_reason();
   print_wakeup_reason();
 
-
   initFS();
 
   setupDisplay();
@@ -1070,8 +1051,6 @@ void setup()
   if (appID >= 0)
   {
     mqttClient.onMessage(onMqttMessage);
-    // checkFWUpdateTimer = xTimerCreate("checkFWUpdateTimer", pdMS_TO_TICKS(1000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(checkFWUpdate));
-    //  xTimerStart(checkFWUpdateTimer, pdMS_TO_TICKS(5000));
   }
   else
   {
