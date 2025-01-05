@@ -1,82 +1,6 @@
 
 #define APP_NAME "esp32FWApp"
 #include <secrets.h>
-
-// #define TELNET_LOGGING
-// #define WEBSTREAM_LOGGING
-// #define SYSLOG_LOGGING
-// #define MQTT_LOGGING
-
-
-// *************** Possible Framework Start
-#include <Arduino.h>
-#include <time.h>
-
-extern "C"
-{
-#include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
-}
-
-
-
-#include <WiFi.h>
-#include <Preferences.h>
-#include <SPI.h>
-
-#ifndef LittleFS
-#include <SPIFFS.h>
-#else
-#include <LittleFS.h>
-#endif
-#include <Update.h>
-
-#include <TFT_eSPI.h>
-
-#include <HTTPClient.h>
-#include <AsyncMqttClient.h>
-#include <ArduinoJson.h>
-
-#include <ArduinoLog.h>
-// #define LOG_LEVEL LOG_LEVEL_INFO
-#define LOG_LEVEL LOG_LEVEL_VERBOSE
-#include <TLogPlus.h>
-
-
-
-// using namespace TLogPlus;
-
-#ifdef TELNET_LOGGING
-#include <TelnetSerialStream.h>
-using namespace TLogPlusStream;
-TelnetSerialStream telnetSerialStream = TelnetSerialStream();
-#endif
-
-#ifdef WEBSTREAM_LOGGING
-#include <WebSerialStream.h>
-using namespace TLogPlusStream;
-WebSerialStream webSerialStream = WebSerialStream();
-#endif
-
-#ifdef SYSLOG_LOGGING
-#include <SyslogStream.h>
-using namespace TLogPlusStream;
-SyslogStream syslogStream = SyslogStream();
-#endif
-
-#ifdef MQTT_LOGGING
-#include <MqttlogStream.h>
-#include "main.h"
-using namespace TLogPlusStream;
-// EthernetClient client;
-WiFiClient client;
-MqttStream mqttStream = MqttStream(&client);
-char topic[128] = "log/foo";
-#endif
-
-// *************** Possible Framework End
-
-
 #ifndef SECRETS_H
 #define SECRETS_H
 
@@ -95,79 +19,52 @@ char topic[128] = "log/foo";
 #define LATITUDE 37.3380937
 #define LONGITUDE -121.8853892
 
-#endif                     // SECRETS_H
+#endif // SECRETS_H
 
 
-TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
+// #define TELNET_LOGGING
+// #define WEBSTREAM_LOGGING
+// #define SYSLOG_LOGGING
+// #define MQTT_LOGGING
 
-int chip_id = ESP.getEfuseMac();
+#ifndef FRAMEWORK_H
+#include "framework.h"
+#endif
 
 // **************** Debug Parameters ************************
 String methodName = "";
 
 // ********* App Parameters *****************
-const char *appName = APP_NAME;
-int appID = -1;
+
 int appVersion = 1;
 const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
-int volume = 50; // Volume is %
-int bootCount = 0;
-esp_sleep_wakeup_cause_t wakeup_reason;
-esp_reset_reason_t reset_reason;
-int maxOtherIndex = -1;
 
-Preferences preferences;
 
 // ********** Time/NTP Parameters **********
-const char *ntpServer = NTP_SERVER;
+
 const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
 
 const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 
 // ********** Connectivity Parameters **********
-String hostname = HOSTNAME;
 
-char ipAddress[100];
-char port[25];
-uint8_t macAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66}; // TODO: make this a meaningful default
-uint8_t wifiSTAMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t wifiAPMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t btMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t ethMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
 
 typedef void (*mqttMessageHandler)(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
 
-AsyncMqttClient mqttClient;
-TimerHandle_t mqttReconnectTimer;
-TimerHandle_t wifiReconnectTimer;
-TimerHandle_t checkFWUpdateTimer;
-TimerHandle_t appIDWaitTimer;
-TimerHandle_t wifiFailCountTimer;
-// WiFiEventHandler wifiConnectHandler;
-// WiFiEventHandler wifiDisconnectHandler;
-
-int wifiFailCount = 0;
 int maxWifiFailCount = 5;
 int wifiFailCountTimeLimit = 10;
 
-// MQTT Topics (25 character limit per level)
-char onlineTopic[100];
-char willTopic[100];
-char idTopic[100];
-char snapshotTopic[100];
 
-char appSubTopic[100];
 
 // ********** App Global Variables **********
 
 
-// internal/iot/esp32FWApp/firmware
+// Should be /internal/iot/firmware
+const char *firmwareUrl = "/firmware/";
+const char *appRootUrl = "/internal/iot/";
 
-char fwUpdateUrl[200];
-char latestFWImageIndexUrl[200];
-char latestFirmwareFileName[100];
 
 
 // ********** Possible Customizations Start ***********
@@ -175,13 +72,17 @@ char latestFirmwareFileName[100];
 int otherAppTopicCount = 0;
 char otherAppTopic[10][25];
 void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
+// WiFiEventHandler wifiConnectHandler;
+// WiFiEventHandler wifiDisconnectHandler;
 
 // put function declarations here:
-void loadPrefs();
-void storePrefs();
-void mqttPublishID();
-void checkFWUpdate();
-int myFunction(int, int);
+
+//void mqttPublishID();
+
+// ********** Function Declarations **********
+void initFS();
+
+
 
 bool isNullorEmpty(char *str)
 {
@@ -202,11 +103,11 @@ void loadPrefs()
   methodName = "loadPrefs()";
   Log.verboseln("Entering...");
 
-  bool doesExist = preferences.isKey("appID");
+  bool doesExist = preferences.isKey("appInstanceID");
   if (doesExist)
   {
     Log.infoln("Loading settings.");
-    appID = preferences.getInt("appID");
+    appInstanceID = preferences.getInt("appInstanceID");
     volume = preferences.getInt("Volume");
     bootCount = preferences.getInt("BootCount");
     // enableSnapshot = preferences.getBool("EnableSnapshot");
@@ -214,7 +115,7 @@ void loadPrefs()
   else
   {
     Log.warningln("Could not find Preferences!");
-    Log.noticeln("appID not set yet!");
+    Log.noticeln("appInstanceID not set yet!");
   }
 
   Log.verboseln("Exiting...");
@@ -229,7 +130,7 @@ void storePrefs()
 
   Log.infoln("Storing Preferences.");
 
-  preferences.putInt("appID", appID);
+  preferences.putInt("appInstanceID", appInstanceID);
   preferences.putInt("Volume", volume);
   preferences.putInt("BootCount", bootCount);
   // preferences.putBool("EnableSnapshot", enableSnapshot);
@@ -308,6 +209,7 @@ void initFS()
 #endif
 }
 
+
 void setupDisplay()
 {
   String oldMethodName = methodName;
@@ -339,19 +241,9 @@ void initAppStrings()
 {
   sprintf(onlineTopic, "%s/online", appName);
   sprintf(willTopic, "%s/offline", appName);
-  sprintf(idTopic, "%s/id", appName);
 
   sprintf(appSubTopic, "%s/#", appName);
 
-}
-
-void initAppInstanceStrings()
-{
-  sprintf(onlineTopic, "%s/status", appName);
-  sprintf(willTopic, "%s/offline", appName);
-  sprintf(idTopic, "%s/id", appName);
-
-  sprintf(appSubTopic, "%s/#", appName);
 }
 
 void connectToWifi()
@@ -386,226 +278,6 @@ void resetWifiFailCount(TimerHandle_t xTimer)
   (void)xTimer;
 
   wifiFailCount = 0;
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onWifiConnect(const WiFiEvent_t &event)
-{
-  String oldMethodName = methodName;
-  methodName = "onWifiConnect(const WiFiEventStationModeGotIP &event)";
-  Log.verboseln("Entering...");
-
-  (void)event;
-
-  Log.infoln("Connected to Wi-Fi. IP address: %p", WiFi.localIP());
-  Log.infoln("Connecting to NTP Server...");
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  // configTime(localTZ, ntpServer);
-  Log.infoln("Connected to NTP Server!");
-
-  struct tm *timeinfo;
-  char tim[20];
-
-  time_t rawtime;
-
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  strftime(tim, sizeof(tim), "%m/%d/%Y %H:%M:%S", timeinfo);
-
-  // bForecastChanged = true;
-  Log.infoln("Local Time: %s", tim);
-
-  if (appID >= 0)
-  {
-    Log.infoln("Checking for FW updates...");
-    checkFWUpdate();
-  }
-
-  Log.infoln("Connecting to MQTT Broker...");
-  connectToMqtt();
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onWifiDisconnect(const WiFiEvent_t &event)
-{
-  String oldMethodName = methodName;
-  methodName = "onWifiDisconnect(const WiFiEventStationModeDisconnected &event)";
-  Log.verboseln("Entering...");
-
-  (void)event;
-
-  Log.infoln("Disconnected from Wi-Fi.");
-  Log.infoln("Disconnecting mqttReconnectTimer");
-  xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  if (wifiFailCount == 0)
-  {
-    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
-    xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000));
-  }
-  wifiFailCount++;
-  if (wifiFailCount > maxWifiFailCount)
-  {
-    Log.errorln("Too many WiFi failures. Rebooting.");
-    esp_restart();
-  }
-
-  Log.infoln("Reconnecting to WiFi...");
-  xTimerStart(wifiReconnectTimer, 0);
-  // wifiReconnectTimer.once(2, connectToWifi);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void WiFiEvent(WiFiEvent_t event)
-{
-  String oldMethodName = methodName;
-  methodName = "WiFiEvent(WiFiEvent_t event)";
-  Log.verboseln("Entering...");
-
-  switch (event)
-  {
-  case ARDUINO_EVENT_WIFI_READY:
-    Log.infoln("Wifi ready.");
-    break;
-  case ARDUINO_EVENT_WIFI_STA_START:
-    Log.infoln("Wifi station start.");
-    break;
-  case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-    Log.infoln("Wifi station connected.");
-    break;
-  case SYSTEM_EVENT_STA_GOT_IP:
-    onWifiConnect(event);
-    break;
-  case SYSTEM_EVENT_STA_DISCONNECTED:
-    onWifiDisconnect(event);
-    break;
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void mqttPublishID()
-{
-  String oldMethodName = methodName;
-  methodName = "mqttPublishID()";
-  Log.verboseln("Entering...");
-
-  char onlineTopic[20];
-  char payloadJson[20];
-  sprintf(onlineTopic, "%s/online", appName);
-  sprintf(payloadJson, "%i", appID);
-  Log.infoln("Published %s topic", onlineTopic);
-  int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void mqttPublishWill()
-{
-  String oldMethodName = methodName;
-  methodName = "mqttPublishID()";
-  Log.verboseln("Entering...");
-
-  char offlineTopic[20];
-  char payloadJson[20];
-  sprintf(offlineTopic, "%s/offline", appName);
-  sprintf(payloadJson, "%i", appID);
-  Log.infoln("Published Last Will and Testament %s", offlineTopic);
-  mqttClient.publish(offlineTopic, 1, true, payloadJson);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onMqttConnect(bool sessionPresent)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttConnect(bool sessionPresent)";
-  Log.verboseln("Entering...");
-
-  Log.infoln("Connected to MQTT broker: %p , port: %d", MQTT_HOST, MQTT_PORT);
-  Log.infoln("Session present: %T", sessionPresent);
-
-  uint16_t packetIdSub1 = mqttClient.subscribe(appSubTopic, 2);
-  if (packetIdSub1 > 0)
-    Log.infoln("Subscribing to %s at QoS 2, packetId: %u", appSubTopic, packetIdSub1);
-  else
-    Log.errorln("Failed to subscribe to %s!!!", appSubTopic);
-
-  if (appID > -1)
-    mqttPublishID();
-  else
-  {
-    // mqttClient.publish(idTopic, 1, false);
-    Log.infoln("Don't have appID yet so nothing to publish to MQTT.");
-    // wichimeIDWaitTimer.once_ms(10000, registerMQTTTopics);
-  }
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttConnect(bool sessionPresent)";
-  Log.verboseln("Entering...");
-
-  (void)reason;
-
-  Log.warningln("Disconnected from MQTT.");
-
-  if (WiFi.isConnected())
-  {
-    xTimerStart(mqttReconnectTimer, 0);
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logMQTTMessage(char *topic, int len, char *payload)
-{
-  char msg[len + 1];
-  memcpy(msg, payload, len);
-  msg[len] = 0;
-
-  Log.verboseln("[%s] {%s} ", topic, msg);
-}
-
-void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttIDMessage()";
-  Log.verboseln("Entering...");
-
-  char *topics[10];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while (token != NULL)
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  if (strcmp(topic, appName) == 0) // Handle all wichime messages
-  {
-    if ((strstr(topic, "offline") != NULL) || (strstr(topic, "online") != NULL))
-    {
-      int otherIndex = atoi(payload);
-      if (otherIndex >= 0)
-        maxOtherIndex = max(maxOtherIndex, otherIndex);
-    }
-  }
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -660,238 +332,6 @@ void doUpdateFirmware(char *fileName)
   delay(2000);
 
   ESP.restart();
-}
-
-// check a string to see if it is numeric
-bool isNumeric(char *str)
-{
-  for (byte i = 0; str[i]; i++)
-  {
-    if (!isDigit(str[i]))
-      return false;
-  }
-  return true;
-}
-
-bool checkMessageForAppSecret(JsonDocument &doc)
-{
-  if (doc["appSecret"].is<const char *>())
-  {
-    if (doc["appSecret"] == appSecret)
-    {
-      Log.verboseln("Got appSecret");
-      return true;
-    }
-    Log.verboseln("Got appSecret but it is wrong.");
-  }
-  else
-   Log.verboseln("Did not get appSecret");
-  return false;
-}
-
-void appMessageHandler(char *topic, JsonDocument &doc)
-{
-  String oldMethodName = methodName;
-  methodName = "appMessageHandler()";
-  Log.verboseln("Entering...");
-
-  // Add your implementation here
-  char topics[10][25];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while ((token != NULL) && (topicCounter < 11))
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  // We can assume the first 2 subtopics are the appName and the appID
-  // The rest of the subtopics are the command
-
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-  return;
-}
-
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttMessage()";
-  Log.verboseln("Entering...");
-
-  logMQTTMessage(topic, len, payload);
-
-  char topics[10][25];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while ((token != NULL) && (topicCounter < 11))
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  if (topicCounter > 10)
-  {
-    Log.noticeln("MQTT Topic has > 10 levels.");
-
-    Log.verboseln("Exiting...");
-    methodName = oldMethodName;
-    return;
-  }
-
-  Log.verboseln("Processing MQTT message...");
-  if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
-  {
-    // Handle all messages for our App (AppName is in topic #1)
-    Log.infoln("Got our topic");
-
-    // Check for appSecret
-    if (isNumeric(topics[1]))
-    {
-      char msg[len + 1];
-      memcpy(msg, payload, len);
-      msg[len] = 0;
-
-      JsonDocument doc;
-      DeserializationError error = deserializeJson(doc, msg);
-
-      // Test if parsing succeeds.
-      if (!error)
-      {
-        if (checkMessageForAppSecret(doc))
-        {
-          // This is a command because there is an AppID in topic #2
-          int cmdTargetID = atoi(topics[1]);
-          if ((cmdTargetID == appID) || (cmdTargetID == -1))
-          { // This command is for us (AppID == our appID or ALL appID)
-            appMessageHandler(topic, doc);
-          }
-          else
-          { // This command is for another instance
-          }
-        }
-        else
-        {
-          Log.errorln("AppSecret not found in message!");
-        }
-      }
-      else
-      {
-        Log.errorln("deserializeJson() failed: %s", error.c_str());
-      }
-    }
-    else
-    { // This is not a properly formatted command (might be a response)
-      Log.errorln("Invalid command target ID.");
-    }
-  }
-  else
-  {
-    for (int i = 0; i < otherAppTopicCount; i++)
-    {
-      if (strcmp(topics[i], "otherAppTopic") == 0)
-      {
-        // This is another App's message we are interested in
-        Log.infoln("Got otherThing topic");
-
-        char msg[len + 1];
-        memcpy(msg, payload, len);
-        msg[len] = 0;
-
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, msg);
-
-        // Test if parsing succeeds.
-        if (!error)
-        {
-          otherAppMessageHandler[i](topic, doc);
-        }
-        else
-        {
-          Log.errorln("deserializeJson() failed: %s", error.c_str());
-        }
-      }
-    }
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logMACAddress(uint8_t baseMac[6])
-{
-  char mac[200];
-  sprintf(mac, "MAC Address: { %02x:%02x:%02x:%02x:%02x:%02x }",
-          baseMac[0], baseMac[1], baseMac[2],
-          baseMac[3], baseMac[4], baseMac[5]);
-  Log.infoln(mac);
-}
-
-void readMACs()
-{
-  // Get MAC address of the WiFi station interface
-
-  esp_read_mac(wifiSTAMACAddress, ESP_MAC_WIFI_STA);
-  // Get the MAC address of the Wi-Fi AP interface
-  esp_read_mac(wifiAPMACAddress, ESP_MAC_WIFI_SOFTAP);
-  // Get the MAC address of the Bluetooth interface
-  esp_read_mac(btMACAddress, ESP_MAC_BT);
-  // Get the MAC address of the Ethernet interface
-  esp_read_mac(ethMACAddress, ESP_MAC_ETH);
-}
-
-void print_wakeup_reason()
-{
-
-  switch (wakeup_reason)
-  {
-  case ESP_SLEEP_WAKEUP_EXT0:
-    Log.infoln("Wakeup caused by external signal using RTC_IO");
-    break;
-  case ESP_SLEEP_WAKEUP_EXT1:
-    Log.infoln("Wakeup caused by external signal using RTC_CNTL");
-    break;
-  case ESP_SLEEP_WAKEUP_TIMER:
-    Log.infoln("Wakeup caused by timer");
-    break;
-  case ESP_SLEEP_WAKEUP_TOUCHPAD:
-    Log.infoln("Wakeup caused by touchpad");
-    break;
-  case ESP_SLEEP_WAKEUP_ULP:
-    Log.infoln("Wakeup caused by ULP program");
-    break;
-  default:
-    Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
-    break;
-  }
-}
-
-void setAppID()
-{
-  String oldMethodName = methodName;
-  methodName = "setAppID()";
-  Log.verboseln("Entering...");
-
-  appID = maxOtherIndex + 1;
-  storePrefs();
-
-  Log.infoln("Got appID, restarting...");
-  esp_restart();
-
-  /*
-    mqttPublishID();
-    Log.infoln("About to change onMessage handler.");
-    mqttClient.onMessage(NULL);
-    Log.infoln("Changed onMessage handler to NULL.");
-    mqttClient.onMessage(onMqttMessage);
-    Log.infoln("Changed onMessage handler.");
-    xTimerDelete(appIDWaitTimer, 0);
-  */
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
 }
 
 int getlatestFirmware(char *fileName)
@@ -1020,9 +460,9 @@ void checkFWUpdate()
   String fileList;
   String server_req;
   int latestFWImageIndex = appVersion;
-  sprintf(latestFWImageIndexUrl, "/firmware/");
+
   Log.infoln("Checking for FW updates.");
-  int code = webGet(latestFWImageIndexUrl, fileList);
+  int code = webGet(firmwareUrl, fileList);
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, fileList);
@@ -1054,6 +494,445 @@ void checkFWUpdate()
     Log.infoln("No new firmware available.");
   }
 
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void onWifiConnect(const WiFiEvent_t &event)
+{
+  String oldMethodName = methodName;
+  methodName = "onWifiConnect(const WiFiEventStationModeGotIP &event)";
+  Log.verboseln("Entering...");
+
+  (void)event;
+
+  Log.infoln("Connected to Wi-Fi. IP address: %p", WiFi.localIP());
+  Log.infoln("Connecting to NTP Server...");
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  // configTime(localTZ, ntpServer);
+  Log.infoln("Connected to NTP Server!");
+
+  struct tm *timeinfo;
+  char tim[20];
+
+  time_t rawtime;
+
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  strftime(tim, sizeof(tim), "%m/%d/%Y %H:%M:%S", timeinfo);
+
+  // bForecastChanged = true;
+  Log.infoln("Local Time: %s", tim);
+
+  if (appInstanceID >= 0)
+  {
+    Log.infoln("Checking for FW updates...");
+    checkFWUpdate();
+  }
+
+  Log.infoln("Connecting to MQTT Broker...");
+  connectToMqtt();
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void onWifiDisconnect(const WiFiEvent_t &event)
+{
+  String oldMethodName = methodName;
+  methodName = "onWifiDisconnect(const WiFiEventStationModeDisconnected &event)";
+  Log.verboseln("Entering...");
+
+  (void)event;
+
+  Log.infoln("Disconnected from Wi-Fi.");
+  Log.infoln("Disconnecting mqttReconnectTimer");
+  xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  if (wifiFailCount == 0)
+  {
+    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
+    xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000));
+  }
+  wifiFailCount++;
+  if (wifiFailCount > maxWifiFailCount)
+  {
+    Log.errorln("Too many WiFi failures. Rebooting.");
+    esp_restart();
+  }
+
+  Log.infoln("Reconnecting to WiFi...");
+  xTimerStart(wifiReconnectTimer, 0);
+  // wifiReconnectTimer.once(2, connectToWifi);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void WiFiEvent(WiFiEvent_t event)
+{
+  String oldMethodName = methodName;
+  methodName = "WiFiEvent(WiFiEvent_t event)";
+  Log.verboseln("Entering...");
+
+  switch (event)
+  {
+  case ARDUINO_EVENT_WIFI_READY:
+    Log.infoln("Wifi ready.");
+    break;
+  case ARDUINO_EVENT_WIFI_STA_START:
+    Log.infoln("Wifi station start.");
+    break;
+  case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+    Log.infoln("Wifi station connected.");
+    break;
+  case SYSTEM_EVENT_STA_GOT_IP:
+    onWifiConnect(event);
+    break;
+  case SYSTEM_EVENT_STA_DISCONNECTED:
+    onWifiDisconnect(event);
+    break;
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void mqttPublishID()
+{
+  String oldMethodName = methodName;
+  methodName = "mqttPublishID()";
+  Log.verboseln("Entering...");
+
+  char onlineTopic[20];
+  char payloadJson[20];
+  sprintf(onlineTopic, "%s/online", appName);
+  sprintf(payloadJson, "%i", appInstanceID);
+  Log.infoln("Published %s topic", onlineTopic);
+  int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void mqttPublishWill()
+{
+  String oldMethodName = methodName;
+  methodName = "mqttPublishID()";
+  Log.verboseln("Entering...");
+
+  char offlineTopic[20];
+  char payloadJson[20];
+  sprintf(offlineTopic, "%s/offline", appName);
+  sprintf(payloadJson, "%i", appInstanceID);
+  Log.infoln("Published Last Will and Testament %s", offlineTopic);
+  mqttClient.publish(offlineTopic, 1, true, payloadJson);
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void onMqttConnect(bool sessionPresent)
+{
+  String oldMethodName = methodName;
+  methodName = "onMqttConnect(bool sessionPresent)";
+  Log.verboseln("Entering...");
+
+  Log.infoln("Connected to MQTT broker: %p , port: %d", MQTT_HOST, MQTT_PORT);
+  Log.infoln("Session present: %T", sessionPresent);
+
+  uint16_t packetIdSub1 = mqttClient.subscribe(appSubTopic, 2);
+  if (packetIdSub1 > 0)
+    Log.infoln("Subscribing to %s at QoS 2, packetId: %u", appSubTopic, packetIdSub1);
+  else
+    Log.errorln("Failed to subscribe to %s!!!", appSubTopic);
+
+  if (appInstanceID > -1)
+    mqttPublishID();
+  else
+  {
+    // mqttClient.publish(idTopic, 1, false);
+    Log.infoln("Don't have appInstanceID yet so nothing to publish to MQTT.");
+    // wichimeIDWaitTimer.once_ms(10000, registerMQTTTopics);
+  }
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
+{
+  String oldMethodName = methodName;
+  methodName = "onMqttConnect(bool sessionPresent)";
+  Log.verboseln("Entering...");
+
+  (void)reason;
+
+  Log.warningln("Disconnected from MQTT.");
+
+  if (WiFi.isConnected())
+  {
+    xTimerStart(mqttReconnectTimer, 0);
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void logMQTTMessage(char *topic, int len, char *payload)
+{
+  char msg[len + 1];
+  memcpy(msg, payload, len);
+  msg[len] = 0;
+
+  Log.verboseln("[%s] {%s} ", topic, msg);
+}
+
+void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+  String oldMethodName = methodName;
+  methodName = "onMqttIDMessage()";
+  Log.verboseln("Entering...");
+
+  char *topics[10];
+  int topicCounter = 0;
+  char *token = strtok(topic, "/");
+
+  while (token != NULL)
+  {
+    strcpy(topics[topicCounter++], token);
+    token = strtok(NULL, "/");
+  }
+
+  if (strcmp(topic, appName) == 0) // Handle all wichime messages
+  {
+    if ((strstr(topic, "offline") != NULL) || (strstr(topic, "online") != NULL))
+    {
+      int otherIndex = atoi(payload);
+      if (otherIndex >= 0)
+        maxOtherIndex = max(maxOtherIndex, otherIndex);
+    }
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+// check a string to see if it is numeric
+bool isNumeric(char *str)
+{
+  for (byte i = 0; str[i]; i++)
+  {
+    if (!isDigit(str[i]))
+      return false;
+  }
+  return true;
+}
+
+bool checkMessageForAppSecret(JsonDocument &doc)
+{
+  if (doc["appSecret"].is<const char *>())
+  {
+    if (doc["appSecret"] == appSecret)
+    {
+      Log.verboseln("Got appSecret");
+      return true;
+    }
+    Log.verboseln("Got appSecret but it is wrong.");
+  }
+  else
+   Log.verboseln("Did not get appSecret");
+  return false;
+}
+
+void appMessageHandler(char *topic, JsonDocument &doc)
+{
+  String oldMethodName = methodName;
+  methodName = "appMessageHandler()";
+  Log.verboseln("Entering...");
+
+  // Add your implementation here
+  char topics[10][25];
+  int topicCounter = 0;
+  char *token = strtok(topic, "/");
+
+  while ((token != NULL) && (topicCounter < 11))
+  {
+    strcpy(topics[topicCounter++], token);
+    token = strtok(NULL, "/");
+  }
+
+  // We can assume the first 2 subtopics are the appName and the appInstanceID
+  // The rest of the subtopics are the command
+
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+  return;
+}
+
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+  String oldMethodName = methodName;
+  methodName = "onMqttMessage()";
+  Log.verboseln("Entering...");
+
+  logMQTTMessage(topic, len, payload);
+
+  char topics[10][25];
+  int topicCounter = 0;
+  char *token = strtok(topic, "/");
+
+  while ((token != NULL) && (topicCounter < 11))
+  {
+    strcpy(topics[topicCounter++], token);
+    token = strtok(NULL, "/");
+  }
+
+  if (topicCounter > 10)
+  {
+    Log.noticeln("MQTT Topic has > 10 levels.");
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return;
+  }
+
+  Log.verboseln("Processing MQTT message...");
+  if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
+  {
+    // Handle all messages for our App (AppName is in topic #1)
+    Log.infoln("Got our topic");
+
+    // Check for appSecret
+    if (isNumeric(topics[1]))
+    {
+      char msg[len + 1];
+      memcpy(msg, payload, len);
+      msg[len] = 0;
+
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, msg);
+
+      // Test if parsing succeeds.
+      if (!error)
+      {
+        if (checkMessageForAppSecret(doc))
+        {
+          // This is a command because there is an AppInstanceID in topic #2
+          int cmdTargetID = atoi(topics[1]);
+          if ((cmdTargetID == appInstanceID) || (cmdTargetID == -1))
+          { // This command is for us (AppInstanceID == our appInstanceID or ALL appInstanceID)
+            appMessageHandler(topic, doc);
+          }
+          else
+          { // This command is for another instance
+          }
+        }
+        else
+        {
+          Log.errorln("AppSecret not found in message!");
+        }
+      }
+      else
+      {
+        Log.errorln("deserializeJson() failed: %s", error.c_str());
+      }
+    }
+    else
+    { // This is not a properly formatted command (might be a response)
+      Log.errorln("Invalid command target ID.");
+    }
+  }
+  else
+  {
+    for (int i = 0; i < otherAppTopicCount; i++)
+    {
+      if (strcmp(topics[i], "otherAppTopic") == 0)
+      {
+        // This is another App's message we are interested in
+        Log.infoln("Got otherThing topic");
+
+        char msg[len + 1];
+        memcpy(msg, payload, len);
+        msg[len] = 0;
+
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, msg);
+
+        // Test if parsing succeeds.
+        if (!error)
+        {
+          otherAppMessageHandler[i](topic, doc);
+        }
+        else
+        {
+          Log.errorln("deserializeJson() failed: %s", error.c_str());
+        }
+      }
+    }
+  }
+
+  Log.verboseln("Exiting...");
+  methodName = oldMethodName;
+}
+
+void logMACAddress(uint8_t baseMac[6])
+{
+  char mac[200];
+  sprintf(mac, "MAC Address: { %02x:%02x:%02x:%02x:%02x:%02x }",
+          baseMac[0], baseMac[1], baseMac[2],
+          baseMac[3], baseMac[4], baseMac[5]);
+  Log.infoln(mac);
+}
+
+void print_wakeup_reason()
+{
+
+  switch (wakeup_reason)
+  {
+  case ESP_SLEEP_WAKEUP_EXT0:
+    Log.infoln("Wakeup caused by external signal using RTC_IO");
+    break;
+  case ESP_SLEEP_WAKEUP_EXT1:
+    Log.infoln("Wakeup caused by external signal using RTC_CNTL");
+    break;
+  case ESP_SLEEP_WAKEUP_TIMER:
+    Log.infoln("Wakeup caused by timer");
+    break;
+  case ESP_SLEEP_WAKEUP_TOUCHPAD:
+    Log.infoln("Wakeup caused by touchpad");
+    break;
+  case ESP_SLEEP_WAKEUP_ULP:
+    Log.infoln("Wakeup caused by ULP program");
+    break;
+  default:
+    Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
+    break;
+  }
+}
+
+void setAppInstanceID()
+{
+  String oldMethodName = methodName;
+  methodName = "setAppInstanceID()";
+  Log.verboseln("Entering...");
+
+  appInstanceID = maxOtherIndex + 1;
+  storePrefs();
+
+  Log.infoln("Got appInstanceID, restarting...");
+  esp_restart();
+
+  /*
+    mqttPublishID();
+    Log.infoln("About to change onMessage handler.");
+    mqttClient.onMessage(NULL);
+    Log.infoln("Changed onMessage handler to NULL.");
+    mqttClient.onMessage(onMqttMessage);
+    Log.infoln("Changed onMessage handler.");
+    xTimerDelete(appInstanceIDWaitTimer, 0);
+  */
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
 }
@@ -1107,13 +986,13 @@ void setup()
 
   preferences.begin(appName, false);
   loadPrefs();
-  if (appID < 0)
+  if (appInstanceID < 0)
   {
-    Log.infoln("AppID not set yet.");
+    Log.infoln("AppInstanceID not set yet.");
   }
   else
   {
-    Log.infoln("AppID: %d", appID);
+    Log.infoln("AppInstanceID: %d", appInstanceID);
   }
 
   bootCount++;
@@ -1149,15 +1028,15 @@ void setup()
   mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
 #endif
 
-  if (appID >= 0)
+  if (appInstanceID >= 0)
   {
     mqttClient.onMessage(onMqttMessage);
   }
   else
   {
     mqttClient.onMessage(onMqttIDMessage);
-    appIDWaitTimer = xTimerCreate("appIDWaitTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(setAppID));
-    xTimerStart(appIDWaitTimer, 0);
+    appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
+    xTimerStart(appInstanceIDWaitTimer, 0);
   }
 
   connectToWifi();
@@ -1176,10 +1055,4 @@ void loop()
     logTimestamp();
     tft.fillScreen(TFT_RED);
   }
-}
-
-// put function definitions here:
-int myFunction(int x, int y)
-{
-  return x + y;
 }
