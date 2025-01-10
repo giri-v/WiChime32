@@ -314,6 +314,8 @@ bool checkGoodTime()
         return false;
     }
 
+    drawTime();
+
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
     return true;
@@ -421,7 +423,8 @@ void mqttPublishID()
     char onlineTopic[51];
     char payloadJson[100];
     sprintf(onlineTopic, "%s/online", appName);
-    sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" }", appInstanceID);
+    sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" , \"online\" : \"true\" }", appInstanceID);
+    //sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" }", appInstanceID);
 
     Log.infoln("Published %s topic", onlineTopic);
     int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
@@ -436,12 +439,12 @@ void mqttPublishWill()
     methodName = "mqttPublishID()";
     Log.verboseln("Entering...");
 
-    char offlineTopic[20];
-    char payloadJson[20];
-    sprintf(offlineTopic, "%s/offline", appName);
-    sprintf(payloadJson, "%i", appInstanceID);
-    Log.infoln("Published Last Will and Testament %s", offlineTopic);
-    mqttClient.publish(offlineTopic, 1, true, payloadJson);
+    char onlineTopic[51];
+    char payloadJson[100];
+    sprintf(onlineTopic, "%s/online", appName);
+    sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" , \"online\" : \"false\" }", appInstanceID);
+    Log.infoln("Published Last Will and Testament %s", onlineTopic);
+    mqttClient.publish(onlineTopic, 1, true, payloadJson);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -465,7 +468,7 @@ void onMqttConnect(bool sessionPresent)
     if (appInstanceID > -1)
     {
         mqttPublishID();
-        mqttPublishWill();
+        //mqttPublishWill();
         ProcessMqttConnectTasks();
     }
     else
@@ -647,6 +650,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         else
         { // This is not a properly formatted command (might be a response)
             Log.infoln("Not a command. No appInstanceID in subtopic #2. Could be our response. Ignoring...");
+            logMQTTMessage(topic, len, payload);
         }
     }
     else

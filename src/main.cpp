@@ -195,18 +195,12 @@ void loop()
     {
       if (!(isGoodTime = checkGoodTime()))
         Log.infoln("Time not set yet.");
-      return;
     }
 
     // put your main code here, to run repeatedly:
-    if ((millis() % 10000) == 0)
+    if ((millis() % 60000) == 0)
     {
-      logTimestamp();
-      tft.fillScreen(TFT_BLACK);
-      tft.setTextFont(fontNum++);
-      if (fontNum > 7)
-        fontNum = 0;
-      tft.drawString(appName, tft.width() / 2, tft.height() / 2);
+      drawTime();
     }
   }
 
