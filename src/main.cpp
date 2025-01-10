@@ -1,37 +1,6 @@
-#include <Arduino.h>
-
-extern "C"
-{
-#include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
-}
 
 #define APP_NAME "esp32FWApp"
-
 #include <secrets.h>
-// #define TELNET_LOGGING
-
-#include <WiFi.h>
-#include <Preferences.h>
-#include <SPI.h>
-
-#ifndef LittleFS
-#include <SPIFFS.h>
-#else
-#include <LittleFS.h>
-#endif
-#include <Update.h>
-
-#include <TFT_eSPI.h>
-
-#include <HTTPClient.h>
-#include <AsyncMqttClient.h>
-#include <ArduinoJson.h>
-
-#include <ArduinoLog.h>
-#define LOG_LEVEL LOG_LEVEL_INFO
-#include <TLogPlus.h>
-
 #ifndef SECRETS_H
 #define SECRETS_H
 
@@ -41,6 +10,9 @@ extern "C"
 #define WIFI_SSID "APName"
 #define WIFI_PASSWORD "APPassword"
 
+#define HTTP_SERVER "192.168.0.12"
+#define HTTP_PORT 5000
+
 #define MQTT_HOST IPAddress(192, 168, 0, 200)
 #define MQTT_PORT 1883
 
@@ -49,855 +21,86 @@ extern "C"
 
 #endif // SECRETS_H
 
-// using namespace TLogPlus;
+#define LOG_LEVEL LOG_LEVEL_INFO
+// #define LOG_LEVEL LOG_LEVEL_VERBOSE
 
-#ifdef TELNET_LOGGING
-#include <TelnetSerialStream.h>
-using namespace TLogPlusStream;
-TelnetSerialStream telnetSerialStream = TelnetSerialStream();
+// #define TELNET_LOGGING
+// #define WEBSTREAM_LOGGING
+// #define SYSLOG_LOGGING
+// #define MQTT_LOGGING
+
+#ifndef FRAMEWORK_H
+#include "framework.h"
 #endif
 
-#ifdef WEBSTREAM_LOGGING
-#include <WebSerialStream.h>
-using namespace TLogPlusStream;
-WebSerialStream webSerialStream = WebSerialStream();
-#endif
-
-#ifdef SYSLOG_LOGGING
-#include <SyslogStream.h>
-using namespace TLogPlusStream;
-SyslogStream syslogStream = SyslogStream();
-#endif
-
-#ifdef MQTT_LOGGING
-#include <MqttlogStream.h>
-using namespace TLogPlusStream;
-// EthernetClient client;
-WiFiClient client;
-MqttStream mqttStream = MqttStream(&client);
-char topic[128] = "log/foo";
-#endif
-
-TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
-
-int chip_id = ESP.getEfuseMac();
+#include "../assets/fonts/Roboto_Regular32pt7b.h"
 
 // **************** Debug Parameters ************************
 String methodName = "";
 
 // ********* App Parameters *****************
-const char *appName = APP_NAME;
-int appID = -1;
 
-int volume = 50; // Volume is %
-int bootCount = 0;
-esp_sleep_wakeup_cause_t wakeup_reason;
-esp_reset_reason_t reset_reason;
-int maxOtherIndex = -1;
+int appVersion = 1;
+const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
-Preferences preferences;
+int fontNum = 0;
+bool isFirstLoop = true;
+bool isGoodTime = false;
 
-// ********** Time/NTP Parameters **********
-const char *ntpServer = NTP_SERVER;
-const long gmtOffset_sec = 0;
+// For US Pacific Time Zone
+const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
+const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
 
-const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
+const GFXfont *timeFont = &Roboto_Regular32pt7b;
 
 // ********** Connectivity Parameters **********
-String hostname = HOSTNAME;
 
-char ipAddress[100];
-char port[25];
-uint8_t macAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66}; // TODO: make this a meaningful default
-uint8_t wifiSTAMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t wifiAPMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t btMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
-uint8_t ethMACAddress[] = {0x32, 0xAE, 0xA4, 0x07, 0x0D, 0x66};
+typedef void (*mqttMessageHandler)(char *topic, char *payload,
+                                   AsyncMqttClientMessageProperties properties,
+                                   size_t len, size_t index, size_t total);
 
-AsyncMqttClient mqttClient;
-TimerHandle_t mqttReconnectTimer;
-TimerHandle_t wifiReconnectTimer;
-TimerHandle_t checkFWUpdateTimer;
-TimerHandle_t appIDWaitTimer;
-// WiFiEventHandler wifiConnectHandler;
-// WiFiEventHandler wifiDisconnectHandler;
+int maxWifiFailCount = 5;
+int wifiFailCountTimeLimit = 10;
 
-// MQTT Topics (25 character limit per level)
-char onlineTopic[100];
-char willTopic[100];
-char idTopic[100];
-char snapshotTopic[100];
+// ********** App Global Variables **********
 
-char appSubTopic[100];
+// Should be /internal/iot/firmware
+const char *firmwareUrl = "/firmware/";
+const char *appRootUrl = "/internal/iot/";
 
-const char *remoteUpdateUrl = "http://192.168.0.12/internal/iot";
+// ********** Possible Customizations Start ***********
 
-char fwUpdateUrl[200];
-char latestFWImageIndexUrl[200];
-char latestFirmwareFileName[100];
+int otherAppTopicCount = 0;
+char otherAppTopic[10][25];
+void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
 
-// put function declarations here:
-void loadPrefs();
-void storePrefs();
-void mqttPublishID();
-int myFunction(int, int);
+// ************ Customizeable Functions *************
+#include "app_functions.h"
 
-bool isNullorEmpty(char *str)
-{
-  if ((str == NULL) || (str[0] == '\0'))
-    return true;
-  else
-    return false;
-}
-
-bool isNullorEmpty(String str)
-{
-  return isNullorEmpty(str.c_str());
-}
-
-void loadPrefs()
-{
-  String oldMethodName = methodName;
-  methodName = "loadPrefs()";
-  Log.verboseln("Entering...");
-
-  bool doesExist = preferences.isKey("appID");
-  if (doesExist)
-  {
-    Log.infoln("Loading settings.");
-    appID = preferences.getInt("appID");
-    volume = preferences.getInt("Volume");
-    bootCount = preferences.getInt("BootCount");
-    // enableSnapshot = preferences.getBool("EnableSnapshot");
-  }
-  else
-  {
-    Log.warningln("Could not find Preferences!");
-    Log.noticeln("appID not set yet!");
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void storePrefs()
-{
-  String oldMethodName = methodName;
-  methodName = "storePrefs()";
-  Log.verboseln("Entering...");
-
-  Log.infoln("Storing Preferences.");
-
-  preferences.putInt("appID", appID);
-  preferences.putInt("Volume", volume);
-  preferences.putInt("BootCount", bootCount);
-  // preferences.putBool("EnableSnapshot", enableSnapshot);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logTimestamp()
-{
-  char c[20];
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  if (timeinfo->tm_year == 70)
-  {
-    sprintf(c, "%10lu ", millis());
-  }
-  else
-  {
-    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
-  }
-
-  Log.infoln("Time: %s", c);
-}
-
-void printTimestamp(Print *_logOutput, int x)
-{
-  char c[20];
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-
-  if (timeinfo->tm_year == 70)
-  {
-    sprintf(c, "%10lu ", millis());
-  }
-  else
-  {
-    strftime(c, 20, "%Y%m%d %H:%M:%S", timeinfo);
-  }
-  _logOutput->print(c);
-  _logOutput->print(": ");
-  _logOutput->print(methodName);
-  _logOutput->print(": ");
-}
-
-void initFS()
-{
-#ifndef LittleFS
-  // Initialize SPIFFS
-  if (!SPIFFS.begin(true))
-  {
-    Log.errorln("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-#else
-  if (!LittleFS.begin())
-  {
-    Log.errorln("Flash FS initialisation failed!");
-    while (1)
-      yield(); // Stay here twiddling thumbs waiting
-  }
-  Log.infoln("Flash FS available!");
-
-#endif
-}
-
-void setupDisplay()
-{
-  String oldMethodName = methodName;
-  methodName = "setupDisplay()";
-  Log.verboseln("Entering");
-
-  Log.infoln("Setting up display.");
-  tft.init();
-  tft.setRotation(2);
-  tft.fillScreen(TFT_BLACK);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLUE);
-  delayMicroseconds(500000);
-  // delayMicroseconds(1000);
-  tft.fillScreen(TFT_BLACK);
-
-  // tft.setFont(baseFont);
-
-  tft.setTextFont(7);
-  tft.setTextSize(1);
-
-  tft.setTextDatum(BC_DATUM);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void initAppStrings()
-{
-  sprintf(onlineTopic, "%s/online", appName);
-  sprintf(willTopic, "%s/offline", appName);
-  sprintf(idTopic, "%s/id", appName);
-
-  sprintf(appSubTopic, "%s/#", appName);
-  sprintf(fwUpdateUrl, "%s/%s/firmware", remoteUpdateUrl, appName);
-
-  sprintf(latestFWImageIndexUrl, "%s/%s/firmware/id", remoteUpdateUrl, appName);
-}
-
-void initAppInstanceStrings()
-{
-  sprintf(onlineTopic, "%s/status", appName);
-  sprintf(willTopic, "%s/offline", appName);
-  sprintf(idTopic, "%s/id", appName);
-
-  sprintf(appSubTopic, "%s/#", appName);
-}
-
-void connectToWifi()
-{
-  String oldMethodName = methodName;
-  methodName = "connectToWifi()";
-
-  Log.infoln("Connecting...");
-  WiFi.hostname(hostname);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  methodName = oldMethodName;
-}
-
-void connectToMqtt()
-{
-  String oldMethodName = methodName;
-  methodName = "connectToMqtt()";
-
-  Log.infoln("Connecting...");
-  mqttClient.connect();
-
-  methodName = oldMethodName;
-}
-
-void onWifiConnect(const WiFiEvent_t &event)
-{
-  String oldMethodName = methodName;
-  methodName = "onWifiConnect(const WiFiEventStationModeGotIP &event)";
-  Log.verboseln("Entering...");
-
-  (void)event;
-
-  Log.infoln("Connected to Wi-Fi. IP address: %p", WiFi.localIP());
-  Log.infoln("Connecting to NTP Server...");
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  // configTime(localTZ, ntpServer);
-  Log.infoln("Connected to NTP Server!");
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  char tim[20];
-  strftime(tim, 20, "%d/%m/%Y %H:%M:%S", timeinfo);
-
-  // bForecastChanged = true;
-  Log.infoln("Local Time: %s", tim);
-
-  Log.infoln("Connecting to MQTT Broker...");
-  connectToMqtt();
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onWifiDisconnect(const WiFiEvent_t &event)
-{
-  String oldMethodName = methodName;
-  methodName = "onWifiDisconnect(const WiFiEventStationModeDisconnected &event)";
-  Log.verboseln("Entering...");
-
-  (void)event;
-
-  Log.infoln("Disconnected from Wi-Fi.");
-  Log.infoln("Disconnecting mqttReconnectTimer");
-  xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  Log.infoln("Reconnecting to WiFi...");
-  xTimerStart(wifiReconnectTimer, 0);
-  // wifiReconnectTimer.once(2, connectToWifi);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void WiFiEvent(WiFiEvent_t event)
-{
-  String oldMethodName = methodName;
-  methodName = "WiFiEvent(WiFiEvent_t event)";
-  Log.verboseln("Entering...");
-
-  switch (event)
-  {
-  case ARDUINO_EVENT_WIFI_READY:
-    Log.infoln("Wifi ready.");
-    break;
-  case ARDUINO_EVENT_WIFI_STA_START:
-    Log.infoln("Wifi station start.");
-    break;
-  case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-    Log.infoln("Wifi station connected.");
-    break;
-  case SYSTEM_EVENT_STA_GOT_IP:
-    onWifiConnect(event);
-    break;
-  case SYSTEM_EVENT_STA_DISCONNECTED:
-    onWifiDisconnect(event);
-    break;
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void mqttPublishID()
-{
-  String oldMethodName = methodName;
-  methodName = "mqttPublishID()";
-  Log.verboseln("Entering...");
-
-  char onlineTopic[20];
-  char payloadJson[20];
-  sprintf(onlineTopic, "%s/online", appName);
-  sprintf(payloadJson, "%i", appID);
-  Log.infoln("Published %s topic", onlineTopic);
-  int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void mqttPublishWill()
-{
-  String oldMethodName = methodName;
-  methodName = "mqttPublishID()";
-  Log.verboseln("Entering...");
-
-  char offlineTopic[20];
-  char payloadJson[20];
-  sprintf(offlineTopic, "%s/offline", appName);
-  sprintf(payloadJson, "%i", appID);
-  Log.infoln("Published Last Will and Testament %s", offlineTopic);
-  mqttClient.publish(offlineTopic, 1, true, payloadJson);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onMqttConnect(bool sessionPresent)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttConnect(bool sessionPresent)";
-  Log.verboseln("Entering...");
-
-  Log.infoln("Connected to MQTT broker: %p , port: %d", MQTT_HOST, MQTT_PORT);
-  Log.infoln("Session present: %T", sessionPresent);
-
-  uint16_t packetIdSub1 = mqttClient.subscribe(appSubTopic, 2);
-  if (packetIdSub1 > 0)
-    Log.infoln("Subscribing to %s at QoS 2, packetId: %u", appSubTopic, packetIdSub1);
-  else
-    Log.errorln("Failed to subscribe to %s!!!", appSubTopic);
-
-  if (appID > -1)
-    mqttPublishID();
-  else
-  {
-    // mqttClient.publish(idTopic, 1, false);
-    Log.infoln("Don't have appID yet so nothing to publish to MQTT.");
-    // wichimeIDWaitTimer.once_ms(10000, registerMQTTTopics);
-  }
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttConnect(bool sessionPresent)";
-  Log.verboseln("Entering...");
-
-  (void)reason;
-
-  Log.warningln("Disconnected from MQTT.");
-
-  if (WiFi.isConnected())
-  {
-    xTimerStart(mqttReconnectTimer, 0);
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logMQTTMessage(char *topic, int len, char *payload)
-{
-  Log.infoln("[%s] {%s} ", topic, payload);
-}
-
-void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttIDMessage()";
-  Log.verboseln("Entering...");
-
-  char *topics[10];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while (token != NULL)
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  if (strcmp(topic, appName) == 0) // Handle all wichime messages
-  {
-    if ((strstr(topic, "offline") != NULL) || (strstr(topic, "online") != NULL))
-    {
-      int otherIndex = atoi(payload);
-      if (otherIndex >= 0)
-        maxOtherIndex = max(maxOtherIndex, otherIndex);
-    }
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void doUpdateFirmware(char *fileName)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttMessage()";
-  Log.verboseln("Entering...");
-
-  File file = SPIFFS.open(fileName);
-
-  if (!file)
-  {
-    Log.errorln("Failed to open file for reading");
-    return;
-  }
-
-  Log.infoln("Starting update..");
-
-  size_t fileSize = file.size();
-
-  if (!Update.begin(fileSize))
-  {
-
-    Log.warningln("Cannot do the update!");
-    // TODO: publish a message that the update failed
-
-    return;
-  };
-
-  Update.writeStream(file);
-
-  if (Update.end())
-  {
-    Log.infoln("Successful update");
-  }
-  else
-  {
-
-    Log.errorln("Error Occurred: %s", String(Update.getError()));
-    // TODO: publish a message that the update failed
-    return;
-  }
-
-  file.close();
-
-  Log.infoln("Reset in 2 seconds...");
-  delay(2000);
-
-  ESP.restart();
-}
-
-// check a string to see if it is numeric
-bool isNumeric(char *str)
-{
-  for (byte i = 0; str[i]; i++)
-  {
-    if (!isDigit(str[i]))
-      return false;
-  }
-  return true;
-}
-
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-  String oldMethodName = methodName;
-  methodName = "onMqttMessage()";
-  Log.verboseln("Entering...");
-
-  logMQTTMessage(topic, len, payload);
-
-  return;
-
-  char *topics[10];
-  int topicCounter = 0;
-  char *token = strtok(topic, "/");
-
-  while ((token != NULL) && (topicCounter < 11))
-  {
-    strcpy(topics[topicCounter++], token);
-    token = strtok(NULL, "/");
-  }
-
-  if (topicCounter > 10)
-  {
-    Log.noticeln("MQTT Topic has > 10 levels.");
-    return;
-  }
-
-  if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
-  {
-    // Handle all messages for our App (AppName is in topic #1)
-    if (isNumeric(topics[1]))
-    {
-      // This is a command because there is an AppID in topic #2
-      int cmdTargetID = atoi(topics[1]);
-      if (cmdTargetID == appID)
-      { // This command is for us (AppID == our appID)
-      }
-      else
-      { // This command is for another instance
-      }
-    }
-    else
-    { // This is not a command
-    }
-  }
-  else if (strcmp(topic, "otherThingTopic") == 0)
-  {
-    // This is another App's message we are interested in
-    Log.infoln("Got CallerID topic");
-
-    char msg[len + 1];
-    memcpy(msg, payload, len);
-    msg[len] = 0;
-    logMQTTMessage(topic, len, msg);
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, msg);
-
-    // Test if parsing succeeds.
-    if (error)
-    {
-      Log.errorln("deserializeJson() failed: %s", error.c_str());
-    }
-    else
-    {
-    }
-  }
-  else // This is an unhandled topic
-  {
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-void logMACAddress(uint8_t baseMac[6])
-{
-  char mac[200];
-  sprintf(mac, "MAC Address: { %02x:%02x:%02x:%02x:%02x:%02x }",
-          baseMac[0], baseMac[1], baseMac[2],
-          baseMac[3], baseMac[4], baseMac[5]);
-  Log.infoln(mac);
-}
-
-void readMACs()
-{
-  // Get MAC address of the WiFi station interface
-
-  esp_read_mac(wifiSTAMACAddress, ESP_MAC_WIFI_STA);
-  // Get the MAC address of the Wi-Fi AP interface
-  esp_read_mac(wifiAPMACAddress, ESP_MAC_WIFI_SOFTAP);
-  // Get the MAC address of the Bluetooth interface
-  esp_read_mac(btMACAddress, ESP_MAC_BT);
-  // Get the MAC address of the Ethernet interface
-  esp_read_mac(ethMACAddress, ESP_MAC_ETH);
-}
-
-void print_wakeup_reason()
-{
-
-  switch (wakeup_reason)
-  {
-  case ESP_SLEEP_WAKEUP_EXT0:
-    Log.infoln("Wakeup caused by external signal using RTC_IO");
-    break;
-  case ESP_SLEEP_WAKEUP_EXT1:
-    Log.infoln("Wakeup caused by external signal using RTC_CNTL");
-    break;
-  case ESP_SLEEP_WAKEUP_TIMER:
-    Log.infoln("Wakeup caused by timer");
-    break;
-  case ESP_SLEEP_WAKEUP_TOUCHPAD:
-    Log.infoln("Wakeup caused by touchpad");
-    break;
-  case ESP_SLEEP_WAKEUP_ULP:
-    Log.infoln("Wakeup caused by ULP program");
-    break;
-  default:
-    Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
-    break;
-  }
-}
-
-void setAppID()
-{
-  String oldMethodName = methodName;
-  methodName = "setAppID()";
-  Log.verboseln("Entering...");
-
-  appID = maxOtherIndex + 1;
-  storePrefs();
-
-  Log.infoln("Got appID, restarting...");
-  esp_restart();
-
-  /*
-    mqttPublishID();
-    Log.infoln("About to change onMessage handler.");
-    mqttClient.onMessage(NULL);
-    Log.infoln("Changed onMessage handler to NULL.");
-    mqttClient.onMessage(onMqttMessage);
-    Log.infoln("Changed onMessage handler.");
-    xTimerDelete(appIDWaitTimer, 0);
-  */
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-int getlatestFirmware(char *fileName)
-{
-  String oldMethodName = methodName;
-  methodName = "int getlatestFirmware(char *fileName)";
-
-  int result = -1;
-  int httpCode = -1;
-
-  WiFiClient client;
-  HTTPClient http;
-  String payload;
-
-  File f = SPIFFS.open(fileName, FILE_WRITE);
-  if (f)
-  {
-    http.begin(fwUpdateUrl);
-    httpCode = http.GET();
-    if (httpCode > 0)
-    {
-      if (httpCode == HTTP_CODE_OK)
-      {
-        WiFiClient *stream = http.getStreamPtr();
-        while (stream->available())
-        {
-          char c = stream->read();
-          f.print(c);
-        }
-      }
-    }
-    else
-    {
-      Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-    }
-    f.close();
-    http.end();
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-  return httpCode;
-}
-
-int webGet(String req, String &res)
-{
-  String oldMethodName = methodName;
-  methodName = "webGet(String req, String &res)";
-
-  int result = -1;
-
-  WiFiClient client;
-  HTTPClient http;
-  String payload;
-  Log.verboseln("[HTTP] begin...");
-
-  if (http.begin(client, req))
-  { // HTTP
-
-    Log.verboseln("[HTTP] GET...");
-    // start connection and send HTTP header
-    int httpCode = http.GET();
-    result = httpCode;
-
-    // httpCode will be negative on error
-    if (httpCode > 0)
-    {
-      // HTTP header has been send and Server response header has been handled
-      Log.verboseln("[HTTP] GET... code: %d\n", httpCode);
-
-      // file found at server
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
-      {
-        res = http.getString();
-      }
-    }
-    else
-    {
-      Log.errorln("[HTTP] GET... failed, error: %s", http.errorToString(httpCode).c_str());
-    }
-
-    http.end();
-  }
-  else
-  {
-    Log.warningln("[HTTP] Unable to connect");
-  }
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-  return result;
-}
-
-void checkFWUpdate()
-{
-  String oldMethodName = methodName;
-  methodName = "checkFWUpdate()";
-
-  String imageID;
-  int code = webGet(latestFWImageIndexUrl, imageID);
-  sprintf(latestFirmwareFileName, "/firmware/%s_%s.bin", appName, imageID);
-
-  code = getlatestFirmware(latestFirmwareFileName);
-
-  doUpdateFirmware(latestFirmwareFileName);
-
-  Log.infoln("Completed checking for FW updates.");
-  xTimerDelete(checkFWUpdateTimer, 0);
-
-  Log.verboseln("Exiting...");
-  methodName = oldMethodName;
-}
-
-IRAM_ATTR void interruptService()
-{
-}
+// ********** Function Declarations **********
+#include "framework_functions.h"
 
 void setup()
 {
   String oldMethodName = methodName;
   methodName = "setup()";
 
-  Serial.begin(115200);
-  Serial.println("Starting....");
 
-#ifdef TELNET
-  Log.addPrintStream(std::make_shared<TelnetSerialStream>(telnetSerialStream));
-#endif
+setupFramework();
 
-#ifdef WEBSTREAM
-  Log.addPrintStream(std::make_shared<WebSerialStream>(webSerialStream));
-#endif
-
-#ifdef SYSLOG_LOGGING
-  syslogStream.setDestination(SYSLOG_HOST);
-  syslogStream.setRaw(false); // wether or not the syslog server is a modern(ish) unix.
-#ifdef SYSLOG_PORT
-  syslogStream.setPort(SYSLOG_PORT);
-#endif
-  Log.addPrintStream(std::make_shared<SyslogStream>(syslogStream));
-#endif
-
-#ifdef MQTT_HOST
-  // mqttStream.setServer(MQTT_HOST);
-  // mqttStream.setTopic(topic);
-  // Log.addPrintStream(std::make_shared<MqttStream>(mqttStream));
-#endif
-
-  TLogPlus::Log.begin();
-
-  Log.begin(LOG_LEVEL, &TLogPlus::Log, false);
-  Log.setPrefix(printTimestamp);
 
   esp_base_mac_addr_get(macAddress);
   logMACAddress(macAddress);
 
-  Log.noticeln("Starting %s...", appName);
-  Log.verboseln("Entering ...");
 
-  preferences.begin(appName, false);
-  loadPrefs();
   bootCount++;
+
+  Log.infoln("Boot count: %d", bootCount);
+
   wakeup_reason = esp_sleep_get_wakeup_cause();
   reset_reason = esp_reset_reason();
-  // initFS();
-
-  setupDisplay();
-
+  print_wakeup_reason();
   // Add some custom code here
   initAppStrings();
 
@@ -908,32 +111,9 @@ void setup()
 
 
 
-  // This is connectivity setup code
-  mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-  wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
-
-  WiFi.onEvent(WiFiEvent);
-
-  mqttClient.onConnect(onMqttConnect);
-  mqttClient.onDisconnect(onMqttDisconnect);
-  mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-#ifdef MQTT_USER
-  mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
-#endif
-
-  if (appID >= 0)
-  {
-    mqttClient.onMessage(onMqttMessage);
-    checkFWUpdateTimer = xTimerCreate("checkFWUpdateTimer", pdMS_TO_TICKS(5000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(checkFWUpdate));
-  }
-  else
-  {
-    mqttClient.onMessage(onMqttIDMessage);
-    appIDWaitTimer = xTimerCreate("appIDWaitTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(setAppID));
-    xTimerStart(appIDWaitTimer, 0);
-  }
-
   connectToWifi();
+
+
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -943,16 +123,24 @@ void loop()
 {
   TLogPlus::Log.loop();
 
-  // put your main code here, to run repeatedly:
-  if ((millis() % 10000) == 0)
+  if (isFirstLoop)
   {
-    logTimestamp();
-    tft.fillScreen(TFT_RED);
+    isFirstLoop = false;
+    Log.infoln("First loop done.");
   }
-}
 
-// put function definitions here:
-int myFunction(int x, int y)
-{
-  return x + y;
+  if ((millis() % 1000) == 0)
+  {
+    if (!isGoodTime)
+    {
+      if (!(isGoodTime = checkGoodTime()))
+        Log.infoln("Time not set yet.");
+    }
+
+    // put your main code here, to run repeatedly:
+    if ((millis() % 60000) == 0)
+    {
+      drawTime();
+    }
+  }
 }
