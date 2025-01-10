@@ -296,31 +296,7 @@ void checkFWUpdate()
     methodName = oldMethodName;
 }
 
-bool checkGoodTime()
-{
-    String oldMethodName = methodName;
-    methodName = "checkGoodTime()";
-    Log.verboseln("Entering...");
 
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
-    {
-        Log.errorln("Failed to obtain time");
-        return false;
-    }
-
-    if (timeinfo.tm_year < (2020 - 1900))
-    {
-        Log.errorln("Failed to obtain time");
-        return false;
-    }
-
-    drawTime();
-
-    Log.verboseln("Exiting...");
-    methodName = oldMethodName;
-    return true;
-}
 
 void onWifiConnect(const WiFiEvent_t &event)
 {
