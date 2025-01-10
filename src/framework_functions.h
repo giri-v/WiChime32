@@ -21,6 +21,7 @@ bool checkMessageForAppSecret(JsonDocument &doc);
 void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
+void setupFramework();
 
 void initFS()
 {
@@ -693,6 +694,91 @@ void logMACAddress(uint8_t baseMac[6])
             baseMac[0], baseMac[1], baseMac[2],
             baseMac[3], baseMac[4], baseMac[5]);
     Log.infoln(mac);
+}
+
+void setupFramework()
+{
+    // Framework: Setting up logging
+    Serial.begin(115200);
+    Serial.println("Starting....");
+
+#ifdef TELNET
+    Log.addPrintStream(std::make_shared<TelnetSerialStream>(telnetSerialStream));
+#endif
+
+#ifdef WEBSTREAM
+    Log.addPrintStream(std::make_shared<WebSerialStream>(webSerialStream));
+#endif
+
+#ifdef SYSLOG_LOGGING
+    syslogStream.setDestination(SYSLOG_HOST);
+    syslogStream.setRaw(false); // wether or not the syslog server is a modern(ish) unix.
+#ifdef SYSLOG_PORT
+    syslogStream.setPort(SYSLOG_PORT);
+#endif
+    Log.addPrintStream(std::make_shared<SyslogStream>(syslogStream));
+#endif
+
+#ifdef MQTT_HOST
+    // mqttStream.setServer(MQTT_HOST);
+    // mqttStream.setTopic(topic);
+    // Log.addPrintStream(std::make_shared<MqttStream>(mqttStream));
+#endif
+
+    TLogPlus::Log.begin();
+
+    Log.begin(LOG_LEVEL, &TLogPlus::Log, false);
+    Log.setPrefix(printTimestamp);
+    // Framework region end
+
+    Log.noticeln("Starting %s v%d...", appName, appVersion);
+
+    // Framework: Setting up app framework
+    Log.verboseln("Entering ...");
+
+    preferences.begin(appName, false);
+    loadPrefs();
+    if (appInstanceID < 0)
+    {
+        Log.infoln("AppInstanceID not set yet.");
+    }
+    else
+    {
+        Log.infoln("AppInstanceID: %d", appInstanceID);
+    }
+
+    initFS();
+
+    setupDisplay();
+    // Framework region end
+
+    // This is connectivity setup code
+    mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+    wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+
+    WiFi.onEvent(WiFiEvent);
+
+    mqttClient.onConnect(onMqttConnect);
+    mqttClient.onDisconnect(onMqttDisconnect);
+    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+#ifdef MQTT_USER
+    mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
+#endif
+
+    if (appInstanceID >= 0)
+    {
+        mqttClient.onMessage(onMqttMessage);
+    }
+    else
+    {
+        mqttClient.onMessage(onMqttIDMessage);
+        appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000),
+                                              pdFALSE, (void *)0,
+                                              reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
+        xTimerStart(appInstanceIDWaitTimer, 0);
+    }
 }
 
 #endif // FRAMEWORK_FUNCTIONS_H
