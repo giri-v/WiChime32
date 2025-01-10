@@ -54,6 +54,15 @@ const int daylightOffset_sec = 3600;
 
 const GFXfont *timeFont = &Roboto_Regular32pt7b;
 
+// Should be /internal/iot/firmware
+const char *firmwareUrl = "/firmware/";
+const char *appRootUrl = "/internal/iot/";
+
+
+char minute[3] = "00";
+char currentTime[6] = "00:00";
+char meridian[3] = "AM";
+
 // ********** Connectivity Parameters **********
 
 typedef void (*mqttMessageHandler)(char *topic, char *payload,
@@ -65,9 +74,6 @@ int wifiFailCountTimeLimit = 10;
 
 // ********** App Global Variables **********
 
-// Should be /internal/iot/firmware
-const char *firmwareUrl = "/firmware/";
-const char *appRootUrl = "/internal/iot/";
 
 // ********** Possible Customizations Start ***********
 

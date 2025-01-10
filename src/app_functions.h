@@ -15,6 +15,11 @@ void ProcessWifiConnectTasks();
 void appMessageHandler(char *topic, JsonDocument &doc);
 void setupDisplay();
 void initAppStrings();
+bool checkGoodTime();
+bool getNewTime();
+
+
+
 void drawTime();
 
 void print_wakeup_reason()
@@ -80,6 +85,8 @@ void ProcessWifiConnectTasks()
     String oldMethodName = methodName;
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
+
+    drawTime();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -247,10 +254,35 @@ void printTimestamp(Print *_logOutput, int x)
     _logOutput->print(": ");
 }
 
-void drawTime()
+bool checkGoodTime()
 {
     String oldMethodName = methodName;
-    methodName = "drawTime()";
+    methodName = "checkGoodTime()";
+    Log.verboseln("Entering...");
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        Log.errorln("Failed to obtain time");
+        return false;
+    }
+
+    if (timeinfo.tm_year < (2020 - 1900))
+    {
+        Log.errorln("Failed to obtain time");
+        return false;
+    }
+
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return true;
+}
+
+bool getNewTime()
+{
+    String oldMethodName = methodName;
+    methodName = "getNewTime()";
     Log.verboseln("Entering...");
 
     struct tm timeinfo;
@@ -259,20 +291,39 @@ void drawTime()
         Log.errorln("Failed to obtain time");
         Log.verboseln("Exiting...");
         methodName = oldMethodName;
-        return;
+        return false;
     }
 
-    char c[20];
-    strftime(c, 20, "%I:%M", &timeinfo);
-
-    char meridian[3];
+    char newTime[6] = "00:00";
+    strftime(newTime, 20, "%I:%M", &timeinfo);
     strftime(meridian, 3, "%p", &timeinfo);
+
+    if (strcmp(newTime, currentTime) != 0)
+    {
+        strcpy(currentTime, newTime);
+        Log.infoln("Time is now %s %s", currentTime, meridian);
+        Log.verboseln("Exiting...");
+        methodName = oldMethodName;
+        return true;
+    }
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return false;
+}
+
+void drawTime()
+{
+    String oldMethodName = methodName;
+    methodName = "drawTime()";
+    Log.verboseln("Entering...");
+
 
     tft.fillScreen(TFT_BLACK);
     tft.setFreeFont(timeFont);
     //tft.setTextSize(2);
     tft.setTextDatum(MC_DATUM);
-    tft.drawString(c, tft.width() / 2, tft.height() / 2);
+    tft.drawString(currentTime, tft.width() / 2, 40);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
