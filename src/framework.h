@@ -28,8 +28,7 @@ extern "C"
 #include <ArduinoJson.h>
 
 #include <ArduinoLog.h>
-// #define LOG_LEVEL LOG_LEVEL_INFO
-#define LOG_LEVEL LOG_LEVEL_VERBOSE
+
 #include <TLogPlus.h>
 
 // using namespace TLogPlus;
