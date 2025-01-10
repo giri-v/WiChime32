@@ -30,6 +30,7 @@
 // #define MQTT_LOGGING
 
 
+
 #ifndef FRAMEWORK_H
 #include "framework.h"
 #endif
@@ -40,10 +41,21 @@
 String methodName = "";
 
 // ********* Framework App Parameters *****************
+// ********* Framework App Parameters *****************
 
 int appVersion = 1;
 const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
 
+// ********** Connectivity Parameters **********
+
+typedef void (*mqttMessageHandler)(char *topic, char *payload,
+                                   AsyncMqttClientMessageProperties properties,
+                                   size_t len, size_t index, size_t total);
+
+int maxWifiFailCount = 5;
+int wifiFailCountTimeLimit = 10;
+
+// ********** App Global Variables **********
 // ********** Connectivity Parameters **********
 
 typedef void (*mqttMessageHandler)(char *topic, char *payload,
@@ -95,6 +107,7 @@ void setup()
   String oldMethodName = methodName;
   methodName = "setup()";
 
+  setupFramework();
   setupFramework();
 
   esp_base_mac_addr_get(macAddress);
