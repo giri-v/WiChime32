@@ -269,8 +269,8 @@ void drawTime()
     strftime(meridian, 3, "%p", &timeinfo);
 
     tft.fillScreen(TFT_BLACK);
-    tft.setTextFont(2);
-    tft.setTextSize(2);
+    tft.setFreeFont(timeFont);
+    //tft.setTextSize(2);
     tft.setTextDatum(MC_DATUM);
     tft.drawString(c, tft.width() / 2, tft.height() / 2);
 

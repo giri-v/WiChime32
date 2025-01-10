@@ -22,7 +22,7 @@
 #endif // SECRETS_H
 
 #define LOG_LEVEL LOG_LEVEL_INFO
-//#define LOG_LEVEL LOG_LEVEL_VERBOSE
+// #define LOG_LEVEL LOG_LEVEL_VERBOSE
 
 // #define TELNET_LOGGING
 // #define WEBSTREAM_LOGGING
@@ -32,6 +32,8 @@
 #ifndef FRAMEWORK_H
 #include "framework.h"
 #endif
+
+#include "../assets/fonts/Roboto_Regular32pt7b.h"
 
 // **************** Debug Parameters ************************
 String methodName = "";
@@ -50,9 +52,13 @@ const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
 
+const GFXfont *timeFont = &Roboto_Regular32pt7b;
+
 // ********** Connectivity Parameters **********
 
-typedef void (*mqttMessageHandler)(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
+typedef void (*mqttMessageHandler)(char *topic, char *payload,
+                                   AsyncMqttClientMessageProperties properties,
+                                   size_t len, size_t index, size_t total);
 
 int maxWifiFailCount = 5;
 int wifiFailCountTimeLimit = 10;
@@ -150,8 +156,10 @@ void setup()
   // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
 
   // This is connectivity setup code
-  mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-  wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+  mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                    (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+  wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                    (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
 
   WiFi.onEvent(WiFiEvent);
 
@@ -169,7 +177,9 @@ void setup()
   else
   {
     mqttClient.onMessage(onMqttIDMessage);
-    appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
+    appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000),
+                                          pdFALSE, (void *)0, 
+                                          reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
     xTimerStart(appInstanceIDWaitTimer, 0);
   }
 
@@ -203,5 +213,4 @@ void loop()
       drawTime();
     }
   }
-
 }
