@@ -38,6 +38,15 @@ char monthOfYear[10] = "January";
 
 bool dateChanged = false;
 
+
+int timeFontSize = 128;
+int dateFontSize = 72;
+int dayOfWeekFontSize = 36;
+
+int dayOfWeekPosY = 18;
+int datePosY = 72;
+int timePosY = screenCenterY;
+
 // ********** Possible Customizations Start ***********
 
 int otherAppTopicCount = 0;
@@ -79,10 +88,10 @@ void setupDisplay()
     ofr.setDrawer(tft);
     ofr.loadFont(Roboto, sizeof(Roboto));
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
-    ofr.setFontSize(24);
+    ofr.setFontSize(32);
     ofr.setAlignment(Align::MiddleCenter);
 
-    drawString(appName, tft.width() / 2, tft.height() / 2);
+    drawString(appName, tft.width() / 2, tft.height() / 2, 56);
 
     char showText[100];
     if (appInstanceID < 0)
@@ -93,10 +102,10 @@ void setupDisplay()
     {
         sprintf(showText, "Name: %s", friendlyName);
     }
-    drawString(showText, tft.width() / 2, tft.height() / 2 + 40, 16);
+    drawString(showText, tft.width() / 2, tft.height() / 2 + 40, 24);
 
     sprintf(showText, "Device ID: %i", appInstanceID);
-    drawString(showText, tft.width() / 2, tft.height() - 20, 12);
+    drawString(showText, tft.width() / 2, tft.height() - 20, 18);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -365,8 +374,11 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
-    tft.fillRect(0, 0, tft.width(), 120, TFT_BLACK);
-    drawString(currentDate, tft.width() / 2, 40, 64);
+    tft.fillRect(0, 0, tft.width(), 36, TFT_BLACK);
+    drawString(dayOfWeek, screenCenterX, dayOfWeekPosY, dayOfWeekFontSize);
+
+    tft.fillRect(0, 36, tft.width(), 72, TFT_BLACK);
+    drawString(currentDate, screenCenterX, datePosY, dateFontSize);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -378,8 +390,8 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
-    tft.fillRect(0, middleCenterY - 20, tft.width(), 120, TFT_BLACK);
-    drawString(currentTime, screenCenterX, middleCenterY, 128);
+    tft.fillRect(0, middleCenterY - 64, tft.width(), 128, TFT_BLACK);
+    drawString(currentTime, screenCenterX, middleCenterY, timeFontSize);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;

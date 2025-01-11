@@ -22,7 +22,7 @@ extern "C"
 #include <Update.h>
 
 #include <TFT_eSPI.h>
-#include <OpenFontRender.h> 
+#include <OpenFontRender.h>
 
 #include <HTTPClient.h>
 #include <AsyncMqttClient.h>
@@ -62,14 +62,11 @@ MqttStream mqttStream = MqttStream(&client);
 char topic[128] = "log/foo";
 #endif
 
-
-
-
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 int screenCenterX = tft.width() / 2;
 int screenCenterY = tft.height() / 2;
 int topCenterY = tft.height() / 6;
-int bottomCenterY = tft.height() *5/6;
+int bottomCenterY = tft.height() * 5 / 6;
 int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
@@ -81,7 +78,6 @@ int chip_id = ESP.getEfuseMac();
 #ifdef APP_NAME
 const char *appName = APP_NAME;
 #endif
-
 
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
@@ -117,9 +113,6 @@ String hostname = HOSTNAME;
 #endif
 
 uint8_t macAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-
-
 
 // MQTT Topics (25 character limit per level)
 char onlineTopic[100];
@@ -160,33 +153,33 @@ void clearScreen()
     tft.fillScreen(TFT_BLACK);
 }
 
-void drawString(String text, int x, int y, int font_size, int color, int bg_color)
+void drawString(String text, int x, int y)
 {
     ofr.setCursor(x, y);
-    ofr.setFontSize(font_size);
-    ofr.setFontColor(color, bg_color);
-    ofr.printf(text.c_str());
-}
-
-void drawString(String text, int x, int y, int font_size, int color)
-{
-    ofr.setCursor(x, y);
-    ofr.setFontSize(font_size);
-    ofr.setFontColor(color);
+    if (ofr.getAlignment() == Align::MiddleCenter)
+    {
+        ofr.setCursor(x, y - ofr.getFontSize() / 5 - 2);
+    }
     ofr.printf(text.c_str());
 }
 
 void drawString(String text, int x, int y, int font_size)
 {
-    ofr.setCursor(x, y);
     ofr.setFontSize(font_size);
-    ofr.printf(text.c_str());
+    drawString(text, x, y);
 }
 
-void drawString(String text, int x, int y)
+void drawString(String text, int x, int y, int font_size, int color)
 {
-    ofr.setCursor(x, y);
-    ofr.printf(text.c_str());
+    ofr.setFontColor(color);
+    drawString(text, x, y, font_size);
 }
+
+void drawString(String text, int x, int y, int font_size, int color, int bg_color)
+{
+    ofr.setFontColor(color, bg_color);
+    drawString(text, x, y, font_size);
+}
+
 
 #endif // FRAMEWORK_H
