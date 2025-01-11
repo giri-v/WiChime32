@@ -97,16 +97,6 @@ void setup()
   setupFramework();
   setupFramework();
 
-  esp_base_mac_addr_get(macAddress);
-  logMACAddress(macAddress);
-
-  bootCount++;
-
-  Log.infoln("Boot count: %d", bootCount);
-
-  wakeup_reason = esp_sleep_get_wakeup_cause();
-  reset_reason = esp_reset_reason();
-  print_wakeup_reason();
   // Add some custom code here
   initAppStrings();
 
