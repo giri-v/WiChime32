@@ -57,11 +57,6 @@ int wifiFailCountTimeLimit = 10;
 
 // ********** App Global Variables **********
 
-// ********** App Global Variables **********
-int fontNum = 0;
-bool isFirstLoop = true;
-bool isGoodTime = false;
-
 // For US Pacific Time Zone
 const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
 const long gmtOffset_sec = -8 * 60 * 60;

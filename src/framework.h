@@ -80,8 +80,13 @@ int chip_id = ESP.getEfuseMac();
 const char *appName = APP_NAME;
 #endif
 
+
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
+
+bool isFirstLoop = true;
+bool isGoodTime = false;
+bool isFirstDraw = true;
 
 #ifdef NTP_SERVER
 const char *ntpServer = NTP_SERVER;
