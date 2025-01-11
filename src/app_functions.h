@@ -313,6 +313,8 @@ bool getNewTime()
     if (strcmp(newDate, currentDate) != 0)
     {
         strcpy(currentDate, newDate);
+        strftime(dayOfWeek, 10, "%A", &timeinfo);
+        strftime(monthOfYear, 10, "%B", &timeinfo);
         Log.infoln("Date is now %s", currentDate);
         dateChanged = true;
     }

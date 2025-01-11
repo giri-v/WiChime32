@@ -73,6 +73,9 @@ const char *appRootUrl = "/internal/iot/";
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
 char currentDate[11] = "01/01/2000";
+char dayOfWeek[10] = "Monday";
+char monthOfYear[10] = "January";
+
 bool dateChanged = false;
 
 // ********** Possible Customizations Start ***********
