@@ -64,13 +64,16 @@ const long gmtOffset_sec = -8 * 60 * 60;
 const int daylightOffset_sec = 3600;
 
 const GFXfont *timeFont = &Roboto_Regular32pt7b;
+const GFXfont *dateFont = &Roboto_Regular32pt7b;
+
 // Should be /internal/iot/firmware
 const char *firmwareUrl = "/firmware/";
 const char *appRootUrl = "/internal/iot/";
 
-char minute[3] = "00";
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
+char currentDate[11] = "01/01/2000";
+bool dateChanged = false;
 
 // ********** Possible Customizations Start ***********
 
@@ -137,6 +140,12 @@ void loop()
     if (getNewTime())
     {
       drawTime();
+    }
+
+    if (dateChanged)
+    {
+      // Do something
+      drawDate();
     }
   }
 }

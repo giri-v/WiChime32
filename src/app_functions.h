@@ -285,6 +285,8 @@ bool getNewTime()
     methodName = "getNewTime()";
     Log.verboseln("Entering...");
 
+    bool isNewTime = false;
+
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
@@ -302,14 +304,42 @@ bool getNewTime()
     {
         strcpy(currentTime, newTime);
         Log.infoln("Time is now %s %s", currentTime, meridian);
-        Log.verboseln("Exiting...");
-        methodName = oldMethodName;
-        return true;
+
+        isNewTime = true;
+    }
+
+    char newDate[6] = "01/01";
+    strftime(newDate, 11, "%m/%d", &timeinfo);
+    if (strcmp(newDate, currentDate) != 0)
+    {
+        strcpy(currentDate, newDate);
+        Log.infoln("Date is now %s", currentDate);
+        dateChanged = true;
+    }
+    else
+    {
+        dateChanged = false;
     }
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
-    return false;
+    return isNewTime;
+}
+
+void drawDate()
+{
+    String oldMethodName = methodName;
+    methodName = "drawDate()";
+    Log.verboseln("Entering...");
+
+    tft.fillScreen(TFT_BLACK);
+    tft.setFreeFont(dateFont);
+    //tft.setTextSize(2);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString(currentDate, screenCenterX, middleCenterY);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
 }
 
 void drawTime()
