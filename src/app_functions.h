@@ -365,8 +365,8 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
-    tft.fillRect(0, middleCenterY - 20, tft.width(), 120, TFT_BLACK);
-    drawString(currentDate, screenCenterX, middleCenterY, 64);
+    tft.fillRect(0, 0, tft.width(), 120, TFT_BLACK);
+    drawString(currentDate, tft.width() / 2, 40, 64);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -378,8 +378,8 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
-    tft.fillRect(0, 0, tft.width(), 120, TFT_BLACK);
-    drawString(currentTime, tft.width() / 2, 40, 48);
+    tft.fillRect(0, middleCenterY - 20, tft.width(), 120, TFT_BLACK);
+    drawString(currentTime, screenCenterX, middleCenterY, 128);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -395,7 +395,6 @@ void app_setup()
     methodName = "app_setup()";
     Log.verboseln("Entering...");
 
-
     // Add some custom code here
     initAppStrings();
 
@@ -403,7 +402,6 @@ void app_setup()
     Log.infoln("Configuring hardware.");
     // pinMode(DOORBELL_PIN, INPUT);
     // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
-
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
