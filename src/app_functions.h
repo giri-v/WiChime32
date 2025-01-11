@@ -18,8 +18,6 @@ void initAppStrings();
 bool checkGoodTime();
 bool getNewTime();
 
-
-
 void drawTime();
 
 void print_wakeup_reason()
@@ -67,6 +65,20 @@ void setupDisplay()
     tft.setTextDatum(MC_DATUM);
 
     tft.drawString(appName, tft.width() / 2, tft.height() / 2);
+
+    char showText[100];
+    if (appInstanceID < 0)
+    {
+        sprintf(showText, "Configuring...");
+    }
+    else
+    {
+        sprintf(showText, "Name: %s", friendlyName);
+    }
+    tft.drawString(showText, tft.width() / 2, tft.height() / 2 + 40);
+
+    sprintf(showText, "Device ID: %i", appInstanceID);
+    tft.drawString(showText, tft.width() / 2, tft.height() - 20);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -273,7 +285,6 @@ bool checkGoodTime()
         return false;
     }
 
-
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
     return true;
@@ -350,6 +361,7 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
+    tft.fillScreen(TFT_BLACK);
     tft.setFreeFont(timeFont);
     tft.setTextColor(TFT_GREEN);
     tft.setTextDatum(MC_DATUM);
