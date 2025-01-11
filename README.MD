@@ -32,3 +32,13 @@ A basic framework for developing ESP32 based applications. The framework include
 
 
 ## Usage
+
+## Libraries
+	[bodmer/TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)
+	[bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson)
+	[marvinroger/AsyncMqttClient](https://github.com/marvinroger/async-mqtt-client)
+	[evotodi/TLogPlus](https://github.com/evotodi/tlogplus)
+	[evotodi/TLogPlusTelnetStream](https://github.com/evotodi/tlogplus-telnet-stream)
+	[evotodi/TLogPlusSyslogStream](https://github.com/evotodi/tlogplus-syslog-stream)
+	[thijse/ArduinoLog](https://github.com/thijse/Arduino-Log)
+   [takkaO/OpenFontRender](https://github.com/takkaO/OpenFontRender)

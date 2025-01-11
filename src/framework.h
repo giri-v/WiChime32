@@ -22,6 +22,7 @@ extern "C"
 #include <Update.h>
 
 #include <TFT_eSPI.h>
+#include <OpenFontRender.h> 
 
 #include <HTTPClient.h>
 #include <AsyncMqttClient.h>
@@ -73,6 +74,7 @@ int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
 
+OpenFontRender ofr;
 
 int chip_id = ESP.getEfuseMac();
 
@@ -84,7 +86,6 @@ const char *appName = APP_NAME;
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
 
-int fontNum = 0;
 bool isFirstLoop = true;
 bool isGoodTime = false;
 bool isFirstDraw = true;
@@ -127,6 +128,9 @@ char appSubTopic[100];
 
 char latestFirmwareFileName[100];
 
+// **************** Debug Parameters ************************
+String methodName = "";
+
 bool isNullorEmpty(char *str)
 {
     if ((str == NULL) || (str[0] == '\0'))
@@ -150,4 +154,39 @@ bool isNumeric(char *str)
     }
     return true;
 }
+
+void clearScreen()
+{
+    tft.fillScreen(TFT_BLACK);
+}
+
+void drawString(String text, int x, int y, int font_size, int color, int bg_color)
+{
+    ofr.setCursor(x, y);
+    ofr.setFontSize(font_size);
+    ofr.setFontColor(color, bg_color);
+    ofr.printf(text.c_str());
+}
+
+void drawString(String text, int x, int y, int font_size, int color)
+{
+    ofr.setCursor(x, y);
+    ofr.setFontSize(font_size);
+    ofr.setFontColor(color);
+    ofr.printf(text.c_str());
+}
+
+void drawString(String text, int x, int y, int font_size)
+{
+    ofr.setCursor(x, y);
+    ofr.setFontSize(font_size);
+    ofr.printf(text.c_str());
+}
+
+void drawString(String text, int x, int y)
+{
+    ofr.setCursor(x, y);
+    ofr.printf(text.c_str());
+}
+
 #endif // FRAMEWORK_H

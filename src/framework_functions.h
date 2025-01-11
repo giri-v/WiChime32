@@ -24,9 +24,9 @@ void onMqttMessage(char *topic, char *payload,
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
 void setupFramework();
-void clearScreen();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
+
 
 void initFS()
 {
@@ -678,10 +678,6 @@ void logMACAddress(uint8_t baseMac[6])
     Log.infoln(mac);
 }
 
-void clearScreen()
-{
-    tft.fillScreen(TFT_BLACK);
-}
 
 void setupFramework()
 {
@@ -846,5 +842,6 @@ void logResetReason(esp_reset_reason_t reset_reason)
         break;
     }
 }
+
 
 #endif // FRAMEWORK_FUNCTIONS_H
