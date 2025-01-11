@@ -35,8 +35,12 @@ char meridian[3] = "AM";
 char currentDate[11] = "01/01/2000";
 char dayOfWeek[10] = "Monday";
 char monthOfYear[10] = "January";
+char currentHour[3] = "00";
+char currentTemp[4] = "000";
 
 bool dateChanged = false;
+bool hourChanged = false;
+bool currentTempChanged = false;
 
 int baseFontSize = 72;
 int appNameFontSize = 56;
@@ -45,10 +49,14 @@ int appInstanceIDFontSize = 18;
 int timeFontSize = 128;
 int dateFontSize = 72;
 int dayOfWeekFontSize = 36;
+int currentTempFontSize = 84;
 
 int dayOfWeekPosY = 18;
 int datePosY = 72;
 int timePosY = screenCenterY;
+
+const char dailyForecastUrl[51] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast";
+const char hourlyForecastUrl[58] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast/hourly";
 
 // ********** Possible Customizations Start ***********
 
@@ -74,6 +82,7 @@ void drawSplashScreen();
 void drawTime();
 void app_loop();
 void app_setup();
+void getHourlyForecast();
 
 //////////////////////////////////////////
 //// Customizable Functions
@@ -334,6 +343,51 @@ bool checkGoodTime()
     return true;
 }
 
+void drawCurrentConditions()
+{
+    String oldMethodName = methodName;
+    methodName = "drawCurrentConditions()";
+    Log.verboseln("Entering...");
+
+    tft.fillRect(0, middleCenterY + 64, tft.width(), 128, TFT_BLACK);
+    drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize/2, currentTempFontSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
+void getHourlyForecast()
+{
+    String oldMethodName = methodName;
+    methodName = "getHourlyForecast()";
+    Log.verboseln("Entering...");
+
+    String forecastJson;
+    String server_req;
+    int latestFWImageIndex = appVersion;
+
+    Log.infoln("Checking for FW updates.");
+    int code = webGet(hourlyForecastUrl, forecastJson);
+
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, forecastJson);
+    if (error.code() == DeserializationError::Ok)
+    {
+        Log.infoln("Got hourly forecast.");
+        // TODO: Parse the hourly forecast and display it
+        strcpy(currentTemp, doc["properties"]["periods"][0]["temperature"]);
+        currentTempChanged = true;
+    }
+    else
+    {
+        Log.errorln("Failed to get hourly forecast: %s", error.c_str());
+    }
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 bool getNewTime()
 {
     String oldMethodName = methodName;
@@ -361,6 +415,20 @@ bool getNewTime()
         Log.infoln("Time is now %s %s", currentTime, meridian);
 
         isNewTime = true;
+    }
+
+    char newHour[3] = "00";
+    strftime(newHour, 3, "%I", &timeinfo);
+    if (strcmp(newHour, currentHour) != 0)
+    {
+        strcpy(currentHour, newHour);
+        Log.infoln("Hour is now %s", currentHour);
+        hourChanged = true;
+        getHourlyForecast();
+    }
+    else
+    {
+        hourChanged = false;
     }
 
     char newDate[6] = "01/01";
@@ -465,6 +533,11 @@ void app_loop()
         {
             // Do something
             drawDate();
+        }
+
+        if (currentTempChanged)
+        {
+            drawCurrentConditions();
         }
     }
 }
