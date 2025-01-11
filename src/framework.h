@@ -74,7 +74,6 @@ int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
 
-
 int chip_id = ESP.getEfuseMac();
 
 #ifdef APP_NAME
@@ -160,7 +159,7 @@ void drawString(String text, int x, int y)
     ofr.setCursor(x, y);
     if (ofr.getAlignment() == Align::MiddleCenter)
     {
-        ofr.setCursor(x, y - ofr.getFontSize() / 5 - 2);
+        ofr.setCursor(x, y - ofr.getFontSize() / 5 - (ofr.getFontSize() > 36 ? 2 : 1));
     }
     ofr.printf(text.c_str());
 }
@@ -182,6 +181,5 @@ void drawString(String text, int x, int y, int font_size, int color, int bg_colo
     ofr.setFontColor(color, bg_color);
     drawString(text, x, y, font_size);
 }
-
 
 #endif // FRAMEWORK_H
