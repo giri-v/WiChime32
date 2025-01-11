@@ -95,7 +95,6 @@ void setup()
   methodName = "setup()";
 
   setupFramework();
-  setupFramework();
 
   // Add some custom code here
   initAppStrings();
