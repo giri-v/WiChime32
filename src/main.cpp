@@ -29,51 +29,9 @@
 // #define SYSLOG_LOGGING
 // #define MQTT_LOGGING
 
-
 #ifndef FRAMEWORK_H
 #include "framework.h"
 #endif
-
-#include "../assets/fonts/Roboto_Regular32pt7b.h"
-
-// **************** Debug Parameters ************************
-String methodName = "";
-
-// ********* Framework App Parameters *****************
-
-int appVersion = 1;
-const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
-
-// ********** Connectivity Parameters **********
-
-typedef void (*mqttMessageHandler)(char *topic, char *payload,
-                                   AsyncMqttClientMessageProperties properties,
-                                   size_t len, size_t index, size_t total);
-
-int maxWifiFailCount = 5;
-int wifiFailCountTimeLimit = 10;
-
-// ********** App Global Variables **********
-
-// For US Pacific Time Zone
-const char *localTZ = "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00";
-const long gmtOffset_sec = -8 * 60 * 60;
-const int daylightOffset_sec = 3600;
-
-const GFXfont *timeFont = &Roboto_Regular32pt7b;
-// Should be /internal/iot/firmware
-const char *firmwareUrl = "/firmware/";
-const char *appRootUrl = "/internal/iot/";
-
-char minute[3] = "00";
-char currentTime[6] = "00:00";
-char meridian[3] = "AM";
-
-// ********** Possible Customizations Start ***********
-
-int otherAppTopicCount = 0;
-char otherAppTopic[10][25];
-void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
 
 // ************ Customizeable Functions *************
 #include "app_functions.h"
@@ -88,13 +46,7 @@ void setup()
 
   setupFramework();
 
-  // Add some custom code here
-  initAppStrings();
-
-  // Configure Hardware
-  Log.infoln("Configuring hardware.");
-  // pinMode(DOORBELL_PIN, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
+  app_setup();
 
   connectToWifi();
 
@@ -106,30 +58,5 @@ void loop()
 {
   TLogPlus::Log.loop();
 
-  if (isFirstLoop)
-  {
-    isFirstLoop = false;
-    Log.infoln("First loop done.");
-  }
-
-  if ((millis() % 1000) == 0)
-  {
-    if (!isGoodTime)
-    {
-      if (!(isGoodTime = checkGoodTime()))
-        Log.infoln("Time not set yet.");
-    }
-
-    if (isFirstDraw)
-    {
-      isFirstDraw = false;
-      clearScreen();
-    }
-
-    // put your main code here, to run repeatedly:
-    if (getNewTime())
-    {
-      drawTime();
-    }
-  }
+  app_loop();
 }

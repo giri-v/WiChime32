@@ -41,3 +41,4 @@ A basic framework for developing ESP32 based applications. The framework include
 	[evotodi/TLogPlusTelnetStream](https://github.com/evotodi/tlogplus-telnet-stream)
 	[evotodi/TLogPlusSyslogStream](https://github.com/evotodi/tlogplus-syslog-stream)
 	[thijse/ArduinoLog](https://github.com/thijse/Arduino-Log)
+   [takkaO/OpenFontRender](https://github.com/takkaO/OpenFontRender)
