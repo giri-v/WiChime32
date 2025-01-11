@@ -139,6 +139,12 @@ void loop()
         Log.infoln("Time not set yet.");
     }
 
+    if (isFirstDraw)
+    {
+      isFirstDraw = false;
+      clearScreen();
+    }
+
     // put your main code here, to run repeatedly:
     if (getNewTime())
     {

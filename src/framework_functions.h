@@ -22,6 +22,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
 void setupFramework();
+void clearScreen();
 
 void initFS()
 {
@@ -670,6 +671,11 @@ void logMACAddress(uint8_t baseMac[6])
             baseMac[0], baseMac[1], baseMac[2],
             baseMac[3], baseMac[4], baseMac[5]);
     Log.infoln(mac);
+}
+
+void clearScreen()
+{
+    tft.fillScreen(TFT_BLACK);
 }
 
 void setupFramework()
