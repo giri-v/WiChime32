@@ -63,6 +63,9 @@ char topic[128] = "log/foo";
 #endif
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
+OpenFontRender ofr;
+int screenWidth = tft.width();
+int screenHeight = tft.height();
 int screenCenterX = tft.width() / 2;
 int screenCenterY = tft.height() / 2;
 int topCenterY = tft.height() / 6;
@@ -71,7 +74,6 @@ int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
 
-OpenFontRender ofr;
 
 int chip_id = ESP.getEfuseMac();
 

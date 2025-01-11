@@ -38,7 +38,10 @@ char monthOfYear[10] = "January";
 
 bool dateChanged = false;
 
-
+int baseFontSize = 72;
+int appNameFontSize = 56;
+int friendlyNameFontSize = 24;
+int appInstanceIDFontSize = 18;
 int timeFontSize = 128;
 int dateFontSize = 72;
 int dayOfWeekFontSize = 36;
@@ -67,7 +70,7 @@ void setupDisplay();
 void initAppStrings();
 bool checkGoodTime();
 bool getNewTime();
-
+void drawSplashScreen();
 void drawTime();
 void app_loop();
 void app_setup();
@@ -75,6 +78,32 @@ void app_setup();
 //////////////////////////////////////////
 //// Customizable Functions
 //////////////////////////////////////////
+void drawSplashScreen()
+{
+    String oldMethodName = methodName;
+    methodName = "drawSplashScreen()";
+    Log.verboseln("Entering");
+
+    drawString(appName, screenCenterX, screenCenterY, appNameFontSize);
+
+    char showText[100];
+    if (appInstanceID < 0)
+    {
+        sprintf(showText, "Configuring...");
+    }
+    else
+    {
+        sprintf(showText, "Name: %s", friendlyName);
+    }
+    drawString(showText, screenCenterX, screenCenterY + appNameFontSize / 2 + friendlyNameFontSize, friendlyNameFontSize);
+
+    sprintf(showText, "Device ID: %i", appInstanceID);
+    drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 void setupDisplay()
 {
     String oldMethodName = methodName;
@@ -88,24 +117,10 @@ void setupDisplay()
     ofr.setDrawer(tft);
     ofr.loadFont(Roboto, sizeof(Roboto));
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
-    ofr.setFontSize(32);
+    ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);
 
-    drawString(appName, tft.width() / 2, tft.height() / 2, 56);
-
-    char showText[100];
-    if (appInstanceID < 0)
-    {
-        sprintf(showText, "Configuring...");
-    }
-    else
-    {
-        sprintf(showText, "Name: %s", friendlyName);
-    }
-    drawString(showText, tft.width() / 2, tft.height() / 2 + 40, 24);
-
-    sprintf(showText, "Device ID: %i", appInstanceID);
-    drawString(showText, tft.width() / 2, tft.height() - 20, 18);
+    drawSplashScreen();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
