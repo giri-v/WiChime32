@@ -361,7 +361,7 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
-    tft.fillScreen(TFT_BLACK);
+
     tft.setFreeFont(timeFont);
     tft.setTextColor(TFT_GREEN);
     tft.setTextDatum(MC_DATUM);
