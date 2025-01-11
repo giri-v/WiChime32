@@ -370,7 +370,7 @@ void mqttPublishWill()
     sprintf(onlineTopic, "%s/online", appName);
     sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" , \"online\" : \"false\" }", appInstanceID);
     Log.infoln("Published Last Will and Testament %s", onlineTopic);
-    mqttClient.publish(onlineTopic, 1, true, payloadJson);
+    mqttClient.publish(onlineTopic, 1, false, payloadJson);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
