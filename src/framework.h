@@ -81,6 +81,7 @@ const char *appName = APP_NAME;
 #endif
 
 int appInstanceID = -1;
+char friendlyName[100] = "NoNameSet";
 
 #ifdef NTP_SERVER
 const char *ntpServer = NTP_SERVER;

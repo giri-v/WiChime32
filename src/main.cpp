@@ -41,7 +41,7 @@
 String methodName = "";
 
 // ********* Framework App Parameters *****************
-// ********* Framework App Parameters *****************
+
 
 int appVersion = 1;
 const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
@@ -56,14 +56,6 @@ int maxWifiFailCount = 5;
 int wifiFailCountTimeLimit = 10;
 
 // ********** App Global Variables **********
-// ********** Connectivity Parameters **********
-
-typedef void (*mqttMessageHandler)(char *topic, char *payload,
-                                   AsyncMqttClientMessageProperties properties,
-                                   size_t len, size_t index, size_t total);
-
-int maxWifiFailCount = 5;
-int wifiFailCountTimeLimit = 10;
 
 // ********** App Global Variables **********
 int fontNum = 0;
