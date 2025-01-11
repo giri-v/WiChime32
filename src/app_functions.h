@@ -332,10 +332,10 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
-    tft.fillScreen(TFT_BLACK);
     tft.setFreeFont(dateFont);
-    //tft.setTextSize(2);
+    tft.setTextColor(TFT_WHITE);
     tft.setTextDatum(MC_DATUM);
+    tft.fillRect(0, middleCenterY - 20, tft.width(), 120, TFT_BLACK);
     tft.drawString(currentDate, screenCenterX, middleCenterY);
 
     Log.verboseln("Exiting...");
@@ -348,11 +348,10 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
-
-    tft.fillScreen(TFT_BLACK);
     tft.setFreeFont(timeFont);
-    //tft.setTextSize(2);
+    tft.setTextColor(TFT_GREEN);
     tft.setTextDatum(MC_DATUM);
+    tft.fillRect(0, 0, tft.width(), 120, TFT_BLACK);
     tft.drawString(currentTime, tft.width() / 2, 40);
 
     Log.verboseln("Exiting...");
