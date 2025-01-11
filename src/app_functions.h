@@ -30,9 +30,13 @@ const int daylightOffset_sec = 3600;
 const char *firmwareUrl = "/firmware/";
 const char *appRootUrl = "/internal/iot/";
 
-char minute[3] = "00";
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
+char currentDate[11] = "01/01/2000";
+char dayOfWeek[10] = "Monday";
+char monthOfYear[10] = "January";
+
+bool dateChanged = false;
 
 // ********** Possible Customizations Start ***********
 
@@ -361,11 +365,8 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
-    tft.setFreeFont(dateFont);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextDatum(MC_DATUM);
     tft.fillRect(0, middleCenterY - 20, tft.width(), 120, TFT_BLACK);
-    tft.drawString(currentDate, screenCenterX, middleCenterY);
+    drawString(currentDate, screenCenterX, middleCenterY, 64);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -377,7 +378,7 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
-    tft.fillScreen(TFT_BLACK);
+    tft.fillRect(0, 0, tft.width(), 120, TFT_BLACK);
     drawString(currentTime, tft.width() / 2, 40, 48);
 
     Log.verboseln("Exiting...");
@@ -410,6 +411,11 @@ void app_setup()
 
 void app_loop()
 {
+    if (isFirstLoop)
+    {
+        isFirstLoop = false;
+        Log.infoln("First loop done.");
+    }
 
     if ((millis() % 1000) == 0)
     {
@@ -419,16 +425,21 @@ void app_loop()
                 Log.infoln("Time not set yet.");
         }
 
-        if (isFirstDraw)
+        if (isFirstDraw && isGoodTime)
         {
             isFirstDraw = false;
             clearScreen();
         }
-
         // put your main code here, to run repeatedly:
         if (getNewTime())
         {
             drawTime();
+        }
+
+        if (dateChanged)
+        {
+            // Do something
+            drawDate();
         }
     }
 }
