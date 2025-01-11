@@ -20,32 +20,6 @@ bool getNewTime();
 
 void drawTime();
 
-void print_wakeup_reason()
-{
-
-    switch (wakeup_reason)
-    {
-    case ESP_SLEEP_WAKEUP_EXT0:
-        Log.infoln("Wakeup caused by external signal using RTC_IO");
-        break;
-    case ESP_SLEEP_WAKEUP_EXT1:
-        Log.infoln("Wakeup caused by external signal using RTC_CNTL");
-        break;
-    case ESP_SLEEP_WAKEUP_TIMER:
-        Log.infoln("Wakeup caused by timer");
-        break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD:
-        Log.infoln("Wakeup caused by touchpad");
-        break;
-    case ESP_SLEEP_WAKEUP_ULP:
-        Log.infoln("Wakeup caused by ULP program");
-        break;
-    default:
-        Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
-        break;
-    }
-}
-
 //////////////////////////////////////////
 //// Customizable Functions
 //////////////////////////////////////////
@@ -188,6 +162,7 @@ void loadPrefs()
         appInstanceID = preferences.getInt("appInstanceID");
         volume = preferences.getInt("Volume");
         bootCount = preferences.getInt("BootCount");
+        preferences.getString("FriendlyName", friendlyName, 100); // 100 is the max length of the string
         // enableSnapshot = preferences.getBool("EnableSnapshot");
     }
     else
@@ -211,6 +186,7 @@ void storePrefs()
     preferences.putInt("appInstanceID", appInstanceID);
     preferences.putInt("Volume", volume);
     preferences.putInt("BootCount", bootCount);
+    preferences.putString("FriendlyName", friendlyName);
     // preferences.putBool("EnableSnapshot", enableSnapshot);
 
     Log.verboseln("Exiting...");

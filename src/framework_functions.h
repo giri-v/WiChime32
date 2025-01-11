@@ -18,11 +18,15 @@ void mqttPublishWill();
 void mqttPublishID();
 bool isNumeric(char *str);
 bool checkMessageForAppSecret(JsonDocument &doc);
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
+void onMqttMessage(char *topic, char *payload,
+                   AsyncMqttClientMessageProperties properties,
+                   size_t len, size_t index, size_t total);
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
 void setupFramework();
 void clearScreen();
+void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
+void logResetReason(esp_reset_reason_t reset_reason);
 
 void initFS()
 {
@@ -179,7 +183,8 @@ int getlatestFirmware(char *fileName)
             }
             else
             {
-                Log.verboseln("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+                Log.verboseln("[HTTP] GET... failed, error: %s\n",
+                              http.errorToString(httpCode).c_str());
             }
 
             f.close();
@@ -203,7 +208,8 @@ int webGet(String req, String &res)
 
     int result = -1;
 
-    Log.verboseln("Connecting to http://%s:%d%s", HTTP_SERVER, HTTP_PORT, req.c_str());
+    Log.verboseln("Connecting to http://%s:%d%s", HTTP_SERVER, HTTP_PORT,
+                  req.c_str());
 
     WiFiClient client;
     HTTPClient http;
@@ -225,7 +231,8 @@ int webGet(String req, String &res)
         // httpCode will be negative on error
         if (httpCode > 0)
         {
-            // HTTP header has been send and Server response header has been handled
+            // HTTP header has been send and Server response header has
+            // been handled
             Log.verboseln("[HTTP] GET... code: %d\n", httpCode);
 
             // file found at server
@@ -296,8 +303,6 @@ void checkFWUpdate()
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
-
-
 
 void onWifiConnect(const WiFiEvent_t &event)
 {
@@ -402,7 +407,7 @@ void mqttPublishID()
     char payloadJson[100];
     sprintf(onlineTopic, "%s/online", appName);
     sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" , \"online\" : \"true\" }", appInstanceID);
-    //sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" }", appInstanceID);
+    // sprintf(payloadJson, "{ \"appInstanceID\" : \"%i\" }", appInstanceID);
 
     Log.infoln("Published %s topic", onlineTopic);
     int pubRes = mqttClient.publish(onlineTopic, 1, false, payloadJson);
@@ -446,7 +451,7 @@ void onMqttConnect(bool sessionPresent)
     if (appInstanceID > -1)
     {
         mqttPublishID();
-        //mqttPublishWill();
+        // mqttPublishWill();
         ProcessMqttConnectTasks();
     }
     else
@@ -711,7 +716,18 @@ void setupFramework()
 
     Log.begin(LOG_LEVEL, &TLogPlus::Log, false);
     Log.setPrefix(printTimestamp);
-    // Framework region end
+
+    esp_base_mac_addr_get(macAddress);
+    logMACAddress(macAddress);
+
+    bootCount++;
+
+    Log.infoln("Boot count: %d", bootCount);
+
+    wakeup_reason = esp_sleep_get_wakeup_cause();
+    reset_reason = esp_reset_reason();
+    logWakeupReason(wakeup_reason);
+    logResetReason(reset_reason);
 
     Log.noticeln("Starting %s v%d...", appName, appVersion);
 
@@ -760,6 +776,74 @@ void setupFramework()
                                               pdFALSE, (void *)0,
                                               reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
         xTimerStart(appInstanceIDWaitTimer, 0);
+    }
+}
+
+void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
+{
+    switch (wakeup_reason)
+    {
+    case ESP_SLEEP_WAKEUP_EXT0:
+        Log.infoln("Wakeup caused by external signal using RTC_IO");
+        break;
+    case ESP_SLEEP_WAKEUP_EXT1:
+        Log.infoln("Wakeup caused by external signal using RTC_CNTL");
+        break;
+    case ESP_SLEEP_WAKEUP_TIMER:
+        Log.infoln("Wakeup caused by timer");
+        break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD:
+        Log.infoln("Wakeup caused by touchpad");
+        break;
+    case ESP_SLEEP_WAKEUP_ULP:
+        Log.infoln("Wakeup caused by ULP program");
+        break;
+    default:
+        Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
+        break;
+    }
+}
+
+void logResetReason(esp_reset_reason_t reset_reason)
+{
+    switch (reset_reason)
+    {
+    case ESP_RST_UNKNOWN:
+        Log.infoln("Reset reason can not be determined");
+        break;
+    case ESP_RST_POWERON:
+        Log.infoln("Reset due to power-on event");
+        break;
+    case ESP_RST_EXT:
+        Log.infoln("Reset by external pin (not applicable for ESP32)");
+        break;
+    case ESP_RST_SW:
+        Log.infoln("Software reset via esp_restart");
+        break;
+    case ESP_RST_PANIC:
+        Log.infoln("Software reset due to exception/panic");
+        break;
+    case ESP_RST_INT_WDT:
+        Log.infoln("Reset (software or hardware) due to interrupt watchdog");
+        break;
+    case ESP_RST_TASK_WDT:
+        Log.infoln("Reset due to task watchdog");
+        break;
+    case ESP_RST_WDT:
+        Log.infoln("Reset due to other watchdogs");
+        break;
+    case ESP_RST_DEEPSLEEP:
+        Log.infoln("Reset after exiting deep sleep mode");
+        break;
+    case ESP_RST_BROWNOUT:
+        Log.infoln("Brownout reset (software or hardware)");
+        break;
+    case ESP_RST_SDIO:
+        Log.infoln("Reset over SDIO");
+        break;
+    default:
+        Log.infoln("Reset reason can not be determined");
+        break;
     }
 }
 
