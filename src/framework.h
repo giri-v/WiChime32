@@ -84,6 +84,7 @@ const char *appName = APP_NAME;
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
 
+int fontNum = 0;
 bool isFirstLoop = true;
 bool isGoodTime = false;
 bool isFirstDraw = true;
