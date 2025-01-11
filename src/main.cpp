@@ -139,7 +139,7 @@ void loop()
         Log.infoln("Time not set yet.");
     }
 
-    if (isFirstDraw)
+    if (isFirstDraw && isGoodTime)
     {
       isFirstDraw = false;
       clearScreen();
