@@ -34,6 +34,12 @@ char minute[3] = "00";
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
 
+int baseFontSize = 72;
+int appNameFontSize = 56;
+int friendlyNameFontSize = 24;
+int appInstanceIDFontSize = 18;
+int timeFontSize = 128;
+
 // ********** Possible Customizations Start ***********
 
 int otherAppTopicCount = 0;
@@ -54,7 +60,7 @@ void setupDisplay();
 void initAppStrings();
 bool checkGoodTime();
 bool getNewTime();
-
+void drawSplashScreen();
 void drawTime();
 void app_loop();
 void app_setup();
@@ -62,6 +68,32 @@ void app_setup();
 //////////////////////////////////////////
 //// Customizable Functions
 //////////////////////////////////////////
+void drawSplashScreen()
+{
+    String oldMethodName = methodName;
+    methodName = "drawSplashScreen()";
+    Log.verboseln("Entering");
+
+    drawString(appName, screenCenterX, screenCenterY, appNameFontSize);
+
+    char showText[100];
+    if (appInstanceID < 0)
+    {
+        sprintf(showText, "Configuring...");
+    }
+    else
+    {
+        sprintf(showText, "Name: %s", friendlyName);
+    }
+    drawString(showText, screenCenterX, screenCenterY + appNameFontSize / 2 + friendlyNameFontSize, friendlyNameFontSize);
+
+    sprintf(showText, "Device ID: %i", appInstanceID);
+    drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 void setupDisplay()
 {
     String oldMethodName = methodName;
@@ -75,24 +107,10 @@ void setupDisplay()
     ofr.setDrawer(tft);
     ofr.loadFont(Roboto, sizeof(Roboto));
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
-    ofr.setFontSize(24);
+    ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);
 
-    drawString(appName, tft.width() / 2, tft.height() / 2);
-
-    char showText[100];
-    if (appInstanceID < 0)
-    {
-        sprintf(showText, "Configuring...");
-    }
-    else
-    {
-        sprintf(showText, "Name: %s", friendlyName);
-    }
-    drawString(showText, tft.width() / 2, tft.height() / 2 + 40, 16);
-
-    sprintf(showText, "Device ID: %i", appInstanceID);
-    drawString(showText, tft.width() / 2, tft.height() - 20, 12);
+    drawSplashScreen();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -346,7 +364,7 @@ void drawTime()
     Log.verboseln("Entering...");
 
     tft.fillScreen(TFT_BLACK);
-    drawString(currentTime, tft.width() / 2, 40, 48);
+    drawString(currentTime, screenCenterX, screenCenterY, timeFontSize);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -362,7 +380,6 @@ void app_setup()
     methodName = "app_setup()";
     Log.verboseln("Entering...");
 
-
     // Add some custom code here
     initAppStrings();
 
@@ -370,7 +387,6 @@ void app_setup()
     Log.infoln("Configuring hardware.");
     // pinMode(DOORBELL_PIN, INPUT);
     // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
-
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
