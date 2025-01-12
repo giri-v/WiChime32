@@ -715,6 +715,7 @@ void drawCallerID()
     methodName = "drawCallerID()";
     Log.verboseln("Entering...");
 
+    Log.infoln("Drawing caller ID.");
     tft.fillRect(0, screenHeight - 100, screenWidth, 100, TFT_BLACK);
     drawString(callerName, screenCenterX, screenHeight - 82, 36);
     drawString(callerNumber, screenCenterX, screenHeight - 36, 24);
@@ -729,6 +730,7 @@ void drawCurrentConditions()
     methodName = "drawCurrentConditions()";
     Log.verboseln("Entering...");
 
+Log.infoln("Drawing current conditions.");
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
 
@@ -749,6 +751,7 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
+Log.infoln("Drawing date.");
     tft.fillRect(0, 0, tft.width(), 36, TFT_BLACK);
     drawString(dayOfWeek, screenCenterX, dayOfWeekPosY, dayOfWeekFontSize);
 
@@ -767,6 +770,7 @@ void drawTime()
     methodName = "drawTime()";
     Log.verboseln("Entering...");
 
+    Log.infoln("Drawing time.");
     tft.fillRect(0, middleCenterY - 64, tft.width(), 128, TFT_BLACK);
     drawString(currentTime, screenCenterX, middleCenterY, timeFontSize);
 

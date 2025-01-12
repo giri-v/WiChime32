@@ -138,7 +138,7 @@ File pngfile;
 
 void *pngOpen(const char *filename, int32_t *size)
 {
-    Serial.printf("Attempting to open %s\n", filename);
+    Log.verboseln("Attempting to open %s\n", filename);
     pngfile = SPIFFS.open(filename, "r");
     *size = pngfile.size();
     return &pngfile;
@@ -210,7 +210,7 @@ void drawPNG(const char *filename, int x, int y)
     if (rc == PNG_SUCCESS)
     {
         tft.startWrite();
-        Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
+        Log.verboseln("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
         uint32_t dt = millis();
         if (png.getWidth() > MAX_IMAGE_WIDTH)
         {
