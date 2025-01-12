@@ -13,6 +13,7 @@ extern "C"
 #include <WiFi.h>
 #include <Preferences.h>
 #include <SPI.h>
+#include <SD.h>
 
 #ifndef LittleFS
 #include <SPIFFS.h>
@@ -20,6 +21,8 @@ extern "C"
 #include <LittleFS.h>
 #endif
 #include <Update.h>
+
+#define SD_CS 5
 
 #include <TFT_eSPI.h>
 #include <OpenFontRender.h>

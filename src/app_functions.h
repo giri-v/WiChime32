@@ -238,7 +238,23 @@ void setupDisplay()
     tft.setRotation(2);
     tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
-    ofr.loadFont(Roboto, sizeof(Roboto));
+    //ofr.loadFont(Roboto, sizeof(Roboto));
+    if (SPIFFS.exists("/Roboto.ttf"))
+    {
+        Log.infoln("Loading font from file.");
+        if (ofr.loadFont("/Roboto.ttf"))
+        {
+            Log.errorln("Failed to load font.");
+            ofr.loadFont(Roboto, sizeof(Roboto));
+        }
+    }
+    else
+    {
+        Log.errorln("Failed to load font.");
+        ofr.loadFont(Roboto, sizeof(Roboto));
+    }
+
+
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
     ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);

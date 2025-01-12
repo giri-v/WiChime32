@@ -25,6 +25,34 @@ void setAppInstanceID();
 void setupFramework();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
+void initSD();
+
+void initSD()
+{
+    String oldMethodName = methodName;
+    methodName = "initSD()";
+    Log.verboseln("Entering...");
+
+    if (!SD.begin(SD_CS))
+    {
+        Log.errorln("SD Card Mount Failed");
+        return;
+    }
+    uint8_t cardType = SD.cardType();
+    if (cardType == CARD_NONE)
+    {
+        Log.errorln("No SD card attached");
+        return;
+    }
+    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC" : cardType == CARD_SDHC ? "SDHC" : "UNKNOWN");
+
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    Log.infoln("SD Card Size: %lluMB", cardSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 
 void initFS()
 {
@@ -672,6 +700,7 @@ void setupFramework()
         Log.infoln("AppInstanceID: %d", appInstanceID);
     }
 
+    initSD();
     initFS();
 
     setupDisplay();
