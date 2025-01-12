@@ -3,6 +3,7 @@
 
 #include "framework.h"
 
+/*
 #include "../assets/icons/weather/clearday.h"
 #include "../assets/icons/weather/clearnight.h"
 #include "../assets/icons/weather/cloudy.h"
@@ -17,6 +18,9 @@
 #include "../assets/icons/weather/notavailable.h"
 #include "../assets/icons/weather/snow.h"
 #include "../assets/icons/weather/sleet.h"
+*/
+#include "../assets/icons/weather/notavailable.h"
+
 
 #include "../assets/fonts/Roboto.h"
 
@@ -70,7 +74,7 @@ int appInstanceIDFontSize = 18;
 int timeFontSize = 128;
 int dateFontSize = 72;
 int dayOfWeekFontSize = 36;
-int currentTempFontSize = 84;
+int currentTempFontSize = 108;
 
 int dayOfWeekPosY = 18;
 int datePosY = 72;
@@ -116,6 +120,7 @@ const unsigned short *getIconFromCode(int wmoCode)
 
     switch (wmoCode)
     {
+        /*
     case 0:
     case 1:
         if (!isDaytime)
@@ -163,6 +168,7 @@ const unsigned short *getIconFromCode(int wmoCode)
     case 99:
         return thunderstorms;
         break;
+        */
     default:
         return notavailable;
         break;
@@ -465,17 +471,18 @@ void parseDailyForecast(JsonDocument &doc)
     // TODO: Parse the hourly forecast and display it
     // strcpy(currentTemp, doc["properties"]["periods"][0]["temperature"]);
     // Log.infoln(doc["properties"]);
-    String cTemp = doc["properties"]["periods"][0]["shortForecast"];
-    String cFcast = doc["properties"]["periods"][0]["temperature"];
+    String cTemp = doc["properties"]["periods"][0]["temperature"];
+    strcpy(currentTemp, cTemp.c_str());
+    String cFcast = doc["properties"]["periods"][0]["shortForecast"];
+    strcpy(currentForecast, cFcast.c_str());
     String cWindSpeed = doc["properties"]["periods"][0]["windSpeed"];
     String cWindDirection = doc["properties"]["periods"][0]["windDirection"];
+    strcpy(windSpeedText, cWindSpeed.c_str());
+    strcpy(windDirectionText, cWindDirection.c_str());
     isDaytime = doc["properties"]["periods"][0]["isDaytime"];
     precipProbability = doc["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"];
     humidity = doc["properties"]["periods"][0]["relativeHumidity"]["value"];
-    strcpy(currentForecast, cFcast.c_str());
-    strcpy(currentTemp, cTemp.c_str());
-    strcpy(windSpeedText, cWindSpeed.c_str());
-    strcpy(windDirectionText, cWindDirection.c_str());
+
     Log.infoln("Current Temp: %s", currentTemp);
 
     Log.verboseln("Exiting...");
@@ -499,6 +506,14 @@ void getDailyForecast()
     JsonDocument doc;
     JsonDocument filter;
     filter["properties"]["periods"][0]["temperature"] = true;
+    filter["properties"]["periods"][0]["shortForecast"] = true;
+    filter["properties"]["periods"][0]["windSpeed"] = true;
+    filter["properties"]["periods"][0]["windDirection"] = true;
+    filter["properties"]["periods"][0]["probabilityOfPrecipitation"] = true;
+    filter["properties"]["periods"][0]["relativeHumidity"] = true;
+    filter["properties"]["periods"][0]["isDaytime"] = true;
+    filter["properties"]["periods"][0]["temperature"] = true;
+
     DeserializationError error = deserializeJson(doc, forecastJson, DeserializationOption::Filter(filter));
     if (error == DeserializationError::Ok)
     {

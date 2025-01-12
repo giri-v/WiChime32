@@ -1,7 +1,7 @@
 #ifndef _BINARYTTF_H_
 #define _BINARYTTF_H_
 
-const unsigned char Roboto[146004] PROGMEM = {
+const unsigned char Roboto[146004] = {
     0x00,
     0x01,
     0x00,
