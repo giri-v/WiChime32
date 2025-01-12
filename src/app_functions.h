@@ -66,6 +66,7 @@ int humidity = 0;
 bool dateChanged = false;
 bool hourChanged = false;
 bool currentTempChanged = false;
+bool isValidForecast = false;
 
 int baseFontSize = 72;
 int appNameFontSize = 56;
@@ -250,7 +251,6 @@ void ProcessWifiConnectTasks()
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
 
-    drawTime();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -520,10 +520,12 @@ void getDailyForecast()
         Log.infoln("Got hourly forecast.");
         parseDailyForecast(doc);
         currentTempChanged = true;
+        isValidForecast = true;
     }
     else
     {
         Log.errorln("Failed to get hourly forecast: %s", error.c_str());
+        isValidForecast = false;
     }
 
     Log.verboseln("Exiting...");
@@ -584,10 +586,6 @@ bool getNewTime()
         Log.infoln("Date is now %s", currentDate);
         dateChanged = true;
     }
-    else
-    {
-        dateChanged = false;
-    }
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -605,6 +603,8 @@ void drawDate()
 
     tft.fillRect(0, 36, tft.width(), 72, TFT_BLACK);
     drawString(currentDate, screenCenterX, datePosY, dateFontSize);
+
+dateChanged = false;
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
