@@ -60,7 +60,7 @@ bool hourChanged = false;
 char currentTemp[4] = "000";
 char currentForecast[50] = "Not Available";
 bool isDaytime = true;
-char windSpeedText[10] = "0 mph";
+char windSpeedText[25] = "0 mph";
 char windDirectionText[10] = "N";
 int precipProbability = 0;
 int humidity = 0;
@@ -120,78 +120,87 @@ void drawCallerID();
 void clearCallerIDDisplay();
 void callerIDMessageHandler(char *topic, int len, char *payload);
 void parseDailyForecast(JsonDocument &doc);
-const unsigned short *getIconFromForecastText(char *forecast);
-const unsigned short *getIconFromCode(int wmoCode);
+String getIconFromForecastText(char *forecast);
+String getIconFromCode(int wmoCode);
 
 //////////////////////////////////////////
 //// Customizable Functions
 //////////////////////////////////////////
 
-const unsigned short *getIconFromCode(int wmoCode)
+String getIconFromCode(int wmoCode)
 {
     String oldMethodName = methodName;
     methodName = "getIconFromCode()";
 
     switch (wmoCode)
     {
-        /*
     case 0:
     case 1:
         if (!isDaytime)
-            return clearnight;
+            return "clearnight";
         else
-            return clearday;
+            return "clearday";
         break;
     case 2:
         if (!isDaytime)
-            return partlycloudynight;
+            return "partlycloudynight";
         else
-            return partlycloudyday;
+            return "partlycloudyday";
         break;
     case 3:
-        return overcast;
+        if (!isDaytime)
+            return "overcastnight";
+        else
+            return "overcastday";
+        break;
     case 4:
     case 45:
     case 48:
-        return fog;
+        if (!isDaytime)
+            return "fognight";
+        else
+            return "fogday";
+        break;
     case 51:
     case 53:
     case 55:
-        return drizzle;
+        return "drizzle";
     case 80:
     case 81:
     case 82:
     case 61:
     case 65:
     case 63:
-        return rain;
+        return "rain";
     case 56:
     case 57:
     case 66:
     case 67:
-        return sleet; // This is not correct, these should return ICY
+        return "sleet"; // This is not correct, these should return ICY
     case 77:
     case 86:
     case 85:
     case 71:
     case 73:
     case 75:
-        return snow;
+        return "snow";
     case 95:
     case 96:
     case 99:
-        return thunderstorms;
+        if (!isDaytime)
+            return "thunderstormsnight";
+        else
+            return "thunderstormsday";
         break;
-        */
     default:
-        return notavailable;
+        return "notavailable";
         break;
     }
 
     methodName = oldMethodName;
 }
 
-const unsigned short *getIconFromForecastText(char *forecast)
+String getIconFromForecastText(char *forecast)
 {
     if ((strcmp(forecast, "Sunny") == 0) || (strcmp(forecast, "Clear") == 0))
         return getIconFromCode(0);
@@ -227,7 +236,7 @@ void drawSplashScreen()
     sprintf(appIconFilename, "/icons/%s.png", appName);
     if (SPIFFS.exists(appIconFilename))
     {
-        drawPNG(appIconFilename, screenCenterX-50, 10);
+        drawPNG(appIconFilename, screenCenterX - 50, 10);
     }
 
     Log.verboseln("Exiting...");
@@ -581,6 +590,7 @@ void parseDailyForecast(JsonDocument &doc)
     // TODO: Parse the hourly forecast and display it
     // strcpy(currentTemp, doc["properties"]["periods"][0]["temperature"]);
     // Log.infoln(doc["properties"]);
+    Log.infoln("Parsing daily forecast.");
     String cTemp = doc["properties"]["periods"][0]["temperature"];
     strcpy(currentTemp, cTemp.c_str());
     String cFcast = doc["properties"]["periods"][0]["shortForecast"];
@@ -592,8 +602,6 @@ void parseDailyForecast(JsonDocument &doc)
     isDaytime = doc["properties"]["periods"][0]["isDaytime"];
     precipProbability = doc["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"];
     humidity = doc["properties"]["periods"][0]["relativeHumidity"]["value"];
-
-    Log.infoln("Current Temp: %s", currentTemp);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -626,7 +634,7 @@ void getDailyForecast()
     DeserializationError error = deserializeJson(doc, forecastJson, DeserializationOption::Filter(filter));
     if (error == DeserializationError::Ok)
     {
-        Log.infoln("Got hourly forecast.");
+        Log.infoln("Got current forecast.");
         parseDailyForecast(doc);
         currentTempChanged = true;
         isValidForecast = true;
@@ -724,10 +732,12 @@ void drawCurrentConditions()
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
 
-    // tft.fillRect(0, screenHeight - 100, 100, 100, TFT_BLACK);
+    char conditionFilename[50];
+    sprintf(conditionFilename, "/icons/weather/%s.png", getIconFromForecastText(currentForecast));
 
-    tft.setSwapBytes(true);
-    tft.pushImage(2, screenHeight - 98, 96, 96, getIconFromForecastText(currentForecast), TFT_BLACK);
+    // tft.setSwapBytes(true);
+    // tft.pushImage(2, screenHeight - 98, 96, 96, conditionFilename, TFT_BLACK);
+    drawPNG(conditionFilename, 2, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
