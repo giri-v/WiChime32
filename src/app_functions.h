@@ -715,11 +715,16 @@ void drawCallerID()
     methodName = "drawCallerID()";
     Log.verboseln("Entering...");
 
-    Log.infoln("Drawing caller ID.");
-    tft.fillRect(0, screenHeight - 100, screenWidth, 100, TFT_BLACK);
-    drawString(callerName, screenCenterX, screenHeight - 82, 36);
-    drawString(callerNumber, screenCenterX, screenHeight - 36, 24);
+    char phoneIcon[50];
+    sprintf(phoneIcon, "/icons/phone.png");
 
+    Log.infoln("Drawing caller ID.");
+    tft.fillRect(0, screenHeight - 120, screenWidth, 120, TFT_BLACK);
+    ofr.setAlignment(Align::TopLeft);
+    drawString(callerName, 120 , screenHeight - 120, 48);
+    drawString(callerNumber, 120 , screenHeight - 50, 36);
+    ofr.setAlignment(Align::MiddleCenter);
+    drawPNG(phoneIcon, 2, screenHeight - 120);
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
@@ -730,15 +735,12 @@ void drawCurrentConditions()
     methodName = "drawCurrentConditions()";
     Log.verboseln("Entering...");
 
-Log.infoln("Drawing current conditions.");
+    Log.infoln("Drawing current conditions.");
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
 
     char conditionFilename[50];
     sprintf(conditionFilename, "/icons/weather/%s.png", getIconFromForecastText(currentForecast));
-
-    // tft.setSwapBytes(true);
-    // tft.pushImage(2, screenHeight - 98, 96, 96, conditionFilename, TFT_BLACK);
     drawPNG(conditionFilename, 2, screenHeight - 120);
 
     Log.verboseln("Exiting...");
@@ -751,7 +753,7 @@ void drawDate()
     methodName = "drawDate()";
     Log.verboseln("Entering...");
 
-Log.infoln("Drawing date.");
+    Log.infoln("Drawing date.");
     tft.fillRect(0, 0, tft.width(), 36, TFT_BLACK);
     drawString(dayOfWeek, screenCenterX, dayOfWeekPosY, dayOfWeekFontSize);
 
