@@ -3,6 +3,21 @@
 
 #include "framework.h"
 
+#include "../assets/icons/weather/clearday.h"
+#include "../assets/icons/weather/clearnight.h"
+#include "../assets/icons/weather/cloudy.h"
+#include "../assets/icons/weather/rain.h"
+#include "../assets/icons/weather/overcast.h"
+#include "../assets/icons/weather/wind.h"
+#include "../assets/icons/weather/drizzle.h"
+#include "../assets/icons/weather/partlycloudyday.h"
+#include "../assets/icons/weather/partlycloudynight.h"
+#include "../assets/icons/weather/thunderstorms.h"
+#include "../assets/icons/weather/fog.h"
+#include "../assets/icons/weather/notavailable.h"
+#include "../assets/icons/weather/snow.h"
+#include "../assets/icons/weather/sleet.h"
+
 #include "../assets/fonts/Roboto.h"
 
 // ********* Framework App Parameters *****************
@@ -37,6 +52,12 @@ char dayOfWeek[10] = "Monday";
 char monthOfYear[10] = "January";
 char currentHour[3] = "00";
 char currentTemp[4] = "000";
+char currentForecast[50] = "Not Available";
+bool isDaytime = true;
+char windSpeedText[10] = "0 mph";
+char windDirectionText[10] = "N";
+int precipProbability = 0;
+int humidity = 0;
 
 bool dateChanged = false;
 bool hourChanged = false;
@@ -82,11 +103,85 @@ void drawSplashScreen();
 void drawTime();
 void app_loop();
 void app_setup();
-void getHourlyForecast();
+void getDailyForecast();
 
 //////////////////////////////////////////
 //// Customizable Functions
 //////////////////////////////////////////
+
+const unsigned short *getIconFromCode(int wmoCode)
+{
+    String oldMethodName = methodName;
+    methodName = "getIconFromCode()";
+
+    switch (wmoCode)
+    {
+    case 0:
+    case 1:
+        if (!isDaytime)
+            return clearnight;
+        else
+            return clearday;
+        break;
+    case 2:
+        if (!isDaytime)
+            return partlycloudynight;
+        else
+            return partlycloudyday;
+        break;
+    case 3:
+        return overcast;
+    case 4:
+    case 45:
+    case 48:
+        return fog;
+    case 51:
+    case 53:
+    case 55:
+        return drizzle;
+    case 80:
+    case 81:
+    case 82:
+    case 61:
+    case 65:
+    case 63:
+        return rain;
+    case 56:
+    case 57:
+    case 66:
+    case 67:
+        return sleet; // This is not correct, these should return ICY
+    case 77:
+    case 86:
+    case 85:
+    case 71:
+    case 73:
+    case 75:
+        return snow;
+    case 95:
+    case 96:
+    case 99:
+        return thunderstorms;
+        break;
+    default:
+        return notavailable;
+        break;
+    }
+
+    methodName = oldMethodName;
+}
+
+const unsigned short *getIconFromForecastText(char *forecast)
+{
+    if ((strcmp(forecast, "Sunny") == 0) || (strcmp(forecast, "Clear") == 0))
+        return getIconFromCode(0);
+    else if (strcmp(forecast, "Mostly Clear") == 0)
+        return getIconFromCode(1);
+    else
+        return getIconFromCode(-1);
+}
+
+
 void drawSplashScreen()
 {
     String oldMethodName = methodName;
@@ -349,34 +444,66 @@ void drawCurrentConditions()
     methodName = "drawCurrentConditions()";
     Log.verboseln("Entering...");
 
-    tft.fillRect(0, middleCenterY + 64, tft.width(), 128, TFT_BLACK);
+    tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize/2, currentTempFontSize);
+
+    tft.fillRect(0, screenHeight - 100, 100,100, TFT_BLACK);
+
+    tft.setSwapBytes(true);
+    tft.pushImage(2, screenHeight - 98, 96, 96, getIconFromForecastText(currentForecast), TFT_BLACK);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
 
-void getHourlyForecast()
+void parseDailyForecast(JsonDocument &doc)
 {
     String oldMethodName = methodName;
-    methodName = "getHourlyForecast()";
+    methodName = "parseDailyForecast()";
+    Log.verboseln("Entering...");
+
+    // TODO: Parse the hourly forecast and display it
+    // strcpy(currentTemp, doc["properties"]["periods"][0]["temperature"]);
+    // Log.infoln(doc["properties"]);
+    String cTemp = doc["properties"]["periods"][0]["shortForecast"];
+    String cFcast = doc["properties"]["periods"][0]["temperature"];
+    String cWindSpeed = doc["properties"]["periods"][0]["windSpeed"];
+    String cWindDirection = doc["properties"]["periods"][0]["windDirection"];
+    isDaytime = doc["properties"]["periods"][0]["isDaytime"];
+    precipProbability = doc["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"];
+    humidity = doc["properties"]["periods"][0]["relativeHumidity"]["value"];
+    strcpy(currentForecast, cFcast.c_str());
+    strcpy(currentTemp, cTemp.c_str());
+    strcpy(windSpeedText, cWindSpeed.c_str());
+    strcpy(windDirectionText, cWindDirection.c_str());
+    Log.infoln("Current Temp: %s", currentTemp);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
+void getDailyForecast()
+{
+    String oldMethodName = methodName;
+    methodName = "getDailyForecast()";
     Log.verboseln("Entering...");
 
     String forecastJson;
     String server_req;
     int latestFWImageIndex = appVersion;
 
-    Log.infoln("Checking for FW updates.");
-    int code = webGet(hourlyForecastUrl, forecastJson);
+    Log.infoln("Getting daily weather forecast");
+    int code = webGet(dailyForecastUrl, forecastJson);
 
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, forecastJson);
-    if (error.code() == DeserializationError::Ok)
+    JsonDocument filter;
+    filter["properties"]["periods"][0]["temperature"] = true;
+    DeserializationError error = deserializeJson(doc, forecastJson, DeserializationOption::Filter(filter));
+    if (error == DeserializationError::Ok)
     {
         Log.infoln("Got hourly forecast.");
-        // TODO: Parse the hourly forecast and display it
-        strcpy(currentTemp, doc["properties"]["periods"][0]["temperature"]);
+        parseDailyForecast(doc);
         currentTempChanged = true;
     }
     else
@@ -424,11 +551,12 @@ bool getNewTime()
         strcpy(currentHour, newHour);
         Log.infoln("Hour is now %s", currentHour);
         hourChanged = true;
-        getHourlyForecast();
+        getDailyForecast();
     }
     else
     {
         hourChanged = false;
+        currentTempChanged = false;
     }
 
     char newDate[6] = "01/01";
