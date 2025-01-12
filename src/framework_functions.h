@@ -26,7 +26,6 @@ void setupFramework();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 
-
 void initFS()
 {
 #ifndef LittleFS
@@ -200,7 +199,6 @@ int getlatestFirmware(char *fileName)
     return httpCode;
 }
 
-
 void checkFWUpdate()
 {
     String oldMethodName = methodName;
@@ -293,8 +291,7 @@ void onWifiDisconnect(const WiFiEvent_t &event)
     // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     if (wifiFailCount == 0)
     {
-        wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
-        xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000));
+        xTimerStart(wifiFailCountTimer, 0);
     }
     wifiFailCount++;
     if (wifiFailCount > maxWifiFailCount)
@@ -437,6 +434,15 @@ void logMQTTMessage(char *topic, int len, char *payload)
     Log.verboseln("[%s] %s", topic, msg);
 }
 
+void logMQTTMessageAsInfo(char *topic, int len, char *payload)
+{
+    char msg[len + 1];
+    memcpy(msg, payload, len);
+    msg[len] = 0;
+
+    Log.infoln("[%s] %s", topic, msg);
+}
+
 void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
     String oldMethodName = methodName;
@@ -512,6 +518,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     Log.verboseln("Entering...");
 
     logMQTTMessage(topic, len, payload);
+    
+    
+    char savedTopic[261];
+    strcpy(savedTopic, topic);
 
     char topics[10][25];
     int topicCounter = 0;
@@ -531,6 +541,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         methodName = oldMethodName;
         return;
     }
+
 
     Log.verboseln("Processing MQTT message...");
     if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
@@ -583,10 +594,9 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         for (int i = 0; i < otherAppTopicCount; i++)
         {
-            if (strcmp(topics[i], "otherAppTopic") == 0)
+            if (strcmp(topics[0], otherAppTopic[i]) == 0)
             {
                 // This is another App's message we are interested in
-                Log.infoln("Got otherThing topic");
 
                 char msg[len + 1];
                 memcpy(msg, payload, len);
@@ -598,7 +608,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
                 // Test if parsing succeeds.
                 if (!error)
                 {
-                    otherAppMessageHandler[i](topic, doc);
+                    otherAppMessageHandler[i](savedTopic, doc);
                 }
                 else
                 {
@@ -620,7 +630,6 @@ void logMACAddress(uint8_t baseMac[6])
             baseMac[3], baseMac[4], baseMac[5]);
     Log.infoln(mac);
 }
-
 
 void setupFramework()
 {
@@ -694,6 +703,9 @@ void setupFramework()
                                       (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
     wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
                                       (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000),
+                                      pdFALSE, (void *)0,
+                                      reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
 
     WiFi.onEvent(WiFiEvent);
 
@@ -785,6 +797,5 @@ void logResetReason(esp_reset_reason_t reset_reason)
         break;
     }
 }
-
 
 #endif // FRAMEWORK_FUNCTIONS_H

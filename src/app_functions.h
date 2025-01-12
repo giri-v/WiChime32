@@ -21,7 +21,6 @@
 */
 #include "../assets/icons/weather/notavailable.h"
 
-
 #include "../assets/fonts/Roboto.h"
 
 // ********* Framework App Parameters *****************
@@ -55,6 +54,9 @@ char currentDate[11] = "01/01/2000";
 char dayOfWeek[10] = "Monday";
 char monthOfYear[10] = "January";
 char currentHour[3] = "00";
+bool dateChanged = false;
+bool hourChanged = false;
+
 char currentTemp[4] = "000";
 char currentForecast[50] = "Not Available";
 bool isDaytime = true;
@@ -63,10 +65,14 @@ char windDirectionText[10] = "N";
 int precipProbability = 0;
 int humidity = 0;
 
-bool dateChanged = false;
-bool hourChanged = false;
+char callerName[100] = "Unknown";
+char callerNumber[25] = "Unknown";
+bool bCallPresent = false;
+TimerHandle_t callerIDOverlayTimer;
+
 bool currentTempChanged = false;
 bool isValidForecast = false;
+bool forceUpdateForecast = false;
 
 int baseFontSize = 72;
 int appNameFontSize = 56;
@@ -109,6 +115,13 @@ void drawTime();
 void app_loop();
 void app_setup();
 void getDailyForecast();
+void drawCurrentConditions();
+void drawCallerID();
+void clearCallerIDDisplay();
+void callerIDMessageHandler(char *topic, JsonDocument &doc);
+void parseDailyForecast(JsonDocument &doc);
+const unsigned short *getIconFromForecastText(char *forecast);
+const unsigned short *getIconFromCode(int wmoCode);
 
 //////////////////////////////////////////
 //// Customizable Functions
@@ -188,7 +201,6 @@ const unsigned short *getIconFromForecastText(char *forecast)
         return getIconFromCode(-1);
 }
 
-
 void drawSplashScreen()
 {
     String oldMethodName = methodName;
@@ -243,6 +255,10 @@ void initAppStrings()
     sprintf(willTopic, "%s/offline", appName);
 
     sprintf(appSubTopic, "%s/#", appName);
+
+    otherAppTopicCount = 1;
+    sprintf(otherAppTopic[0], "callattendant");
+    otherAppMessageHandler[0] = callerIDMessageHandler;
 }
 
 void ProcessWifiConnectTasks()
@@ -250,7 +266,6 @@ void ProcessWifiConnectTasks()
     String oldMethodName = methodName;
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
-
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -266,11 +281,34 @@ void ProcessWifiDisconnectTasks()
     methodName = oldMethodName;
 }
 
+void subscribeOtherAppTopics()
+{
+    String oldMethodName = methodName;
+    methodName = "subscribeOtherAppTopics()";
+    Log.verboseln("Entering...");
+
+    for (int i = 0; i < otherAppTopicCount; i++)
+    {
+        char wildcardTopic[28];
+        sprintf(wildcardTopic, "%s/#", otherAppTopic[i]);
+        int packetIdSub1 = mqttClient.subscribe(wildcardTopic, 2);
+        if (packetIdSub1 > 0)
+            Log.infoln("Subscribing to %s at QoS 2, packetId: %u", wildcardTopic, packetIdSub1);
+        else
+            Log.errorln("Failed to subscribe to %s!!!", wildcardTopic);
+    }
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 void ProcessMqttConnectTasks()
 {
     String oldMethodName = methodName;
     methodName = "ProcessMqttConnectTasks()";
     Log.verboseln("Entering...");
+
+    subscribeOtherAppTopics();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -305,6 +343,57 @@ void appMessageHandler(char *topic, JsonDocument &doc)
 
     // We can assume the first 2 subtopics are the appName and the appInstanceID
     // The rest of the subtopics are the command
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return;
+}
+
+void clearCallerIDDisplay()
+{
+    String oldMethodName = methodName;
+    methodName = "clearCallerIDDisplay()";
+    Log.verboseln("Entering...");
+
+    bCallPresent = false;
+    //drawCurrentConditions();
+    //currentTempChanged = true;
+    forceUpdateForecast = true;
+    xTimerStop(callerIDOverlayTimer, 0);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
+void callerIDMessageHandler(char *topic, JsonDocument &doc)
+{
+    String oldMethodName = methodName;
+    methodName = "callerIDMessageHandler()";
+    Log.verboseln("Entering...");
+
+    // Add your implementation here
+    char topics[10][25];
+    int topicCounter = 0;
+    char *token = strtok(topic, "/");
+
+    while ((token != NULL) && (topicCounter < 11))
+    {
+        strcpy(topics[topicCounter++], token);
+        token = strtok(NULL, "/");
+    }
+
+    Log.infoln("Got callattendant message - %s", topic);
+
+    if (strcmp(topics[1], "CallerID") == 0)
+    {
+        Log.infoln("Got CallerID message - %s", doc.as<String>().c_str());
+        strncpy(callerName, doc["name"], 25);
+        strncpy(callerNumber, doc["number"], 14);
+        bCallPresent = true;
+        // updateMarquee();
+        drawCallerID();
+        xTimerStart(callerIDOverlayTimer, 0);
+    }
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -444,24 +533,6 @@ bool checkGoodTime()
     return true;
 }
 
-void drawCurrentConditions()
-{
-    String oldMethodName = methodName;
-    methodName = "drawCurrentConditions()";
-    Log.verboseln("Entering...");
-
-    tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
-    drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize/2, currentTempFontSize);
-
-    tft.fillRect(0, screenHeight - 100, 100,100, TFT_BLACK);
-
-    tft.setSwapBytes(true);
-    tft.pushImage(2, screenHeight - 98, 96, 96, getIconFromForecastText(currentForecast), TFT_BLACK);
-
-    Log.verboseln("Exiting...");
-    methodName = oldMethodName;
-}
-
 void parseDailyForecast(JsonDocument &doc)
 {
     String oldMethodName = methodName;
@@ -501,7 +572,6 @@ void getDailyForecast()
 
     Log.infoln("Getting daily weather forecast");
     int code = webGet(dailyForecastUrl, forecastJson);
-
 
     JsonDocument doc;
     JsonDocument filter;
@@ -592,6 +662,39 @@ bool getNewTime()
     return isNewTime;
 }
 
+void drawCallerID()
+{
+    String oldMethodName = methodName;
+    methodName = "drawCallerID()";
+    Log.verboseln("Entering...");
+
+    tft.fillRect(0, screenHeight - 100, screenWidth, 100, TFT_BLACK);
+    drawString(callerName, screenCenterX, screenHeight - 100, 36);
+    drawString(callerNumber, screenCenterX, screenHeight - 36, 24);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
+void drawCurrentConditions()
+{
+    String oldMethodName = methodName;
+    methodName = "drawCurrentConditions()";
+    Log.verboseln("Entering...");
+
+
+    tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
+    drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
+
+    //tft.fillRect(0, screenHeight - 100, 100, 100, TFT_BLACK);
+
+    tft.setSwapBytes(true);
+    tft.pushImage(2, screenHeight - 98, 96, 96, getIconFromForecastText(currentForecast), TFT_BLACK);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
 void drawDate()
 {
     String oldMethodName = methodName;
@@ -604,7 +707,7 @@ void drawDate()
     tft.fillRect(0, 36, tft.width(), 72, TFT_BLACK);
     drawString(currentDate, screenCenterX, datePosY, dateFontSize);
 
-dateChanged = false;
+    dateChanged = false;
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -635,6 +738,9 @@ void app_setup()
 
     // Add some custom code here
     initAppStrings();
+
+    callerIDOverlayTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(15000), pdFALSE,
+                                        (void *)0, reinterpret_cast<TimerCallbackFunction_t>(clearCallerIDDisplay));
 
     // Configure Hardware
     Log.infoln("Configuring hardware.");
@@ -678,9 +784,11 @@ void app_loop()
             drawDate();
         }
 
-        if (currentTempChanged)
+        if (currentTempChanged || forceUpdateForecast)
         {
             drawCurrentConditions();
+            if (forceUpdateForecast)
+                forceUpdateForecast = false;
         }
     }
 }
