@@ -552,6 +552,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         // Check for appSecret
         if (isNumeric(topics[1]))
         {
+            // Test if parsing succeeds.
             char msg[len + 1];
             memcpy(msg, payload, len);
             msg[len] = 0;
@@ -559,30 +560,22 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
             JsonDocument doc;
             DeserializationError error = deserializeJson(doc, msg);
 
-            // Test if parsing succeeds.
-            if (!error)
+            if (checkMessageForAppSecret(doc))
             {
-                if (checkMessageForAppSecret(doc))
-                {
-                    // This is a command because there is an AppInstanceID in topic #2
-                    int cmdTargetID = atoi(topics[1]);
-                    if ((cmdTargetID == appInstanceID) || (cmdTargetID == -1))
-                    { // This command is for us (AppInstanceID == our appInstanceID or ALL appInstanceID)
-                        appMessageHandler(topic, doc);
-                    }
-                    else
-                    { // This command is for another instance
-                    }
+                // This is a command because there is an AppInstanceID in topic #2
+                int cmdTargetID = atoi(topics[1]);
+                if ((cmdTargetID == appInstanceID) || (cmdTargetID == -1))
+                { // This command is for us (AppInstanceID == our appInstanceID or ALL appInstanceID)
+                    appMessageHandler(topic, len, payload);
+                }
+                else
+                { // This command is for another instance
+                }
                 }
                 else
                 {
                     Log.errorln("AppSecret not found in message!");
                 }
-            }
-            else
-            {
-                Log.errorln("deserializeJson() failed: %s", error.c_str());
-            }
         }
         else
         { // This is not a properly formatted command (might be a response)
@@ -598,22 +591,8 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
             {
                 // This is another App's message we are interested in
 
-                char msg[len + 1];
-                memcpy(msg, payload, len);
-                msg[len] = 0;
-
-                JsonDocument doc;
-                DeserializationError error = deserializeJson(doc, msg);
-
                 // Test if parsing succeeds.
-                if (!error)
-                {
-                    otherAppMessageHandler[i](savedTopic, doc);
-                }
-                else
-                {
-                    Log.errorln("deserializeJson() failed: %s", error.c_str());
-                }
+                    otherAppMessageHandler[i](savedTopic, len, payload);
             }
         }
     }

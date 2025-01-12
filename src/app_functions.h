@@ -94,7 +94,7 @@ const char hourlyForecastUrl[58] = "/internal/proxy/nws/gridpoints/MTR/103,81/fo
 
 int otherAppTopicCount = 0;
 char otherAppTopic[10][25];
-void (*otherAppMessageHandler[10])(char *topic, JsonDocument &doc);
+void (*otherAppMessageHandler[10])(char *topic, int len, char *payload);
 
 void printTimestamp(Print *_logOutput, int x);
 void logTimestamp();
@@ -105,7 +105,7 @@ void ProcessMqttDisconnectTasks();
 void ProcessMqttConnectTasks();
 void ProcessWifiDisconnectTasks();
 void ProcessWifiConnectTasks();
-void appMessageHandler(char *topic, JsonDocument &doc);
+void appMessageHandler(char *topic, int len, char *payload);
 void setupDisplay();
 void initAppStrings();
 bool checkGoodTime();
@@ -118,7 +118,7 @@ void getDailyForecast();
 void drawCurrentConditions();
 void drawCallerID();
 void clearCallerIDDisplay();
-void callerIDMessageHandler(char *topic, JsonDocument &doc);
+void callerIDMessageHandler(char *topic, int len, char *payload);
 void parseDailyForecast(JsonDocument &doc);
 const unsigned short *getIconFromForecastText(char *forecast);
 const unsigned short *getIconFromCode(int wmoCode);
@@ -324,7 +324,7 @@ void ProcessMqttDisconnectTasks()
     methodName = oldMethodName;
 }
 
-void appMessageHandler(char *topic, JsonDocument &doc)
+void appMessageHandler(char *topic, int len, char *payload)
 {
     String oldMethodName = methodName;
     methodName = "appMessageHandler()";
@@ -341,6 +341,13 @@ void appMessageHandler(char *topic, JsonDocument &doc)
         token = strtok(NULL, "/");
     }
 
+    char msg[len + 1];
+    memcpy(msg, payload, len);
+    msg[len] = 0;
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, msg);
+
     // We can assume the first 2 subtopics are the appName and the appInstanceID
     // The rest of the subtopics are the command
 
@@ -356,8 +363,8 @@ void clearCallerIDDisplay()
     Log.verboseln("Entering...");
 
     bCallPresent = false;
-    //drawCurrentConditions();
-    //currentTempChanged = true;
+    // drawCurrentConditions();
+    // currentTempChanged = true;
     forceUpdateForecast = true;
     xTimerStop(callerIDOverlayTimer, 0);
 
@@ -365,7 +372,7 @@ void clearCallerIDDisplay()
     methodName = oldMethodName;
 }
 
-void callerIDMessageHandler(char *topic, JsonDocument &doc)
+void callerIDMessageHandler(char *topic, int len, char *payload)
 {
     String oldMethodName = methodName;
     methodName = "callerIDMessageHandler()";
@@ -382,17 +389,27 @@ void callerIDMessageHandler(char *topic, JsonDocument &doc)
         token = strtok(NULL, "/");
     }
 
-    Log.infoln("Got callattendant message - %s", topic);
-
     if (strcmp(topics[1], "CallerID") == 0)
     {
-        Log.infoln("Got CallerID message - %s", doc.as<String>().c_str());
-        strncpy(callerName, doc["name"], 25);
-        strncpy(callerNumber, doc["number"], 14);
-        bCallPresent = true;
-        // updateMarquee();
-        drawCallerID();
-        xTimerStart(callerIDOverlayTimer, 0);
+        char msg[len + 1];
+        memcpy(msg, payload, len);
+        msg[len] = 0;
+
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, msg);
+
+        if (!error)
+        {
+            strncpy(callerName, doc["name"], 25);
+            strncpy(callerNumber, doc["number"], 14);
+            bCallPresent = true;
+            drawCallerID();
+            xTimerStart(callerIDOverlayTimer, 0);
+        }
+        else
+        {
+            Log.errorln("deserializeJson() failed: %s", error.c_str());
+        }
     }
 
     Log.verboseln("Exiting...");
@@ -669,7 +686,7 @@ void drawCallerID()
     Log.verboseln("Entering...");
 
     tft.fillRect(0, screenHeight - 100, screenWidth, 100, TFT_BLACK);
-    drawString(callerName, screenCenterX, screenHeight - 100, 36);
+    drawString(callerName, screenCenterX, screenHeight - 82, 36);
     drawString(callerNumber, screenCenterX, screenHeight - 36, 24);
 
     Log.verboseln("Exiting...");
@@ -682,11 +699,10 @@ void drawCurrentConditions()
     methodName = "drawCurrentConditions()";
     Log.verboseln("Entering...");
 
-
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
 
-    //tft.fillRect(0, screenHeight - 100, 100, 100, TFT_BLACK);
+    // tft.fillRect(0, screenHeight - 100, 100, 100, TFT_BLACK);
 
     tft.setSwapBytes(true);
     tft.pushImage(2, screenHeight - 98, 96, 96, getIconFromForecastText(currentForecast), TFT_BLACK);
