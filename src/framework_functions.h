@@ -443,7 +443,7 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
     methodName = "onMqttIDMessage()";
     Log.verboseln("Entering...");
 
-    char *topics[10];
+    char topics[10][25];
     int topicCounter = 0;
     char *token = strtok(topic, "/");
 
