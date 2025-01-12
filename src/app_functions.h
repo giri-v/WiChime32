@@ -223,6 +223,13 @@ void drawSplashScreen()
     sprintf(showText, "Device ID: %i", appInstanceID);
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
+    char appIconFilename[50];
+    sprintf(appIconFilename, "/icons/%s.png", appName);
+    if (SPIFFS.exists(appIconFilename))
+    {
+        drawPNG(appIconFilename, screenCenterX-50, 10);
+    }
+
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
@@ -238,7 +245,7 @@ void setupDisplay()
     tft.setRotation(2);
     tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
-    //ofr.loadFont(Roboto, sizeof(Roboto));
+    // ofr.loadFont(Roboto, sizeof(Roboto));
     if (SPIFFS.exists("/Roboto.ttf"))
     {
         Log.infoln("Loading font from file.");
@@ -253,7 +260,6 @@ void setupDisplay()
         Log.errorln("Failed to load font.");
         ofr.loadFont(Roboto, sizeof(Roboto));
     }
-
 
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
     ofr.setFontSize(baseFontSize);

@@ -26,6 +26,8 @@ extern "C"
 
 #include <TFT_eSPI.h>
 #include <OpenFontRender.h>
+#include <PNGdec.h>
+#define MAX_IMAGE_WIDTH 320
 
 #include <HTTPClient.h>
 #include <AsyncMqttClient.h>
@@ -76,6 +78,9 @@ int bottomCenterY = tft.height() * 5 / 6;
 int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
+PNG png;
+int32_t xPos = 0;
+int32_t yPos = 0;
 
 #ifdef APP_NAME
 const char *appName = APP_NAME;
@@ -126,6 +131,43 @@ char latestFirmwareFileName[100];
 // **************** Debug Parameters ************************
 String methodName = "";
 
+// Here are the callback functions that the decPNG library
+// will use to open files, fetch data and close the file.
+
+File pngfile;
+
+void *pngOpen(const char *filename, int32_t *size)
+{
+    Serial.printf("Attempting to open %s\n", filename);
+    pngfile = SPIFFS.open(filename, "r");
+    *size = pngfile.size();
+    return &pngfile;
+}
+
+void pngClose(void *handle)
+{
+    File pngfile = *((File *)handle);
+    if (pngfile)
+        pngfile.close();
+}
+
+int32_t pngRead(PNGFILE *page, uint8_t *buffer, int32_t length)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.read(buffer, length);
+}
+
+int32_t pngSeek(PNGFILE *page, int32_t position)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.seek(position);
+}
+
+
 bool isNullorEmpty(char *str)
 {
     if ((str == NULL) || (str[0] == '\0'))
@@ -148,6 +190,39 @@ bool isNumeric(char *str)
             return false;
     }
     return true;
+}
+
+void pngDraw(PNGDRAW *pDraw)
+{
+    uint16_t lineBuffer[MAX_IMAGE_WIDTH];
+    static uint16_t dmaBuffer[MAX_IMAGE_WIDTH]; // static so buffer persists after fn exit
+
+    png.getLineAsRGB565(pDraw, lineBuffer, PNG_RGB565_BIG_ENDIAN, 0xffffffff);
+    tft.pushImage(xPos, yPos + pDraw->y, pDraw->iWidth, 1, lineBuffer);
+}
+
+void drawPNG(const char *filename, int x, int y)
+{
+
+    int16_t rc = png.open(filename, pngOpen, pngClose, pngRead, pngSeek, pngDraw);
+    xPos = x;
+    yPos = y;
+    if (rc == PNG_SUCCESS)
+    {
+        tft.startWrite();
+        Serial.printf("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
+        uint32_t dt = millis();
+        if (png.getWidth() > MAX_IMAGE_WIDTH)
+        {
+            Serial.println("Image too wide for allocated lin buffer!");
+        }
+        else
+        {
+            rc = png.decode(NULL, 0);
+            png.close();
+        }
+        tft.endWrite();
+    }
 }
 
 void clearScreen()
