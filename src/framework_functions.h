@@ -467,7 +467,7 @@ void onMqttConnect(bool sessionPresent)
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
     String oldMethodName = methodName;
-    methodName = "onMqttConnect(bool sessionPresent)";
+    methodName = "onMqttDisconnect(AsyncMqttClientDisconnectReason reason)";
     Log.verboseln("Entering...");
 
     (void)reason;
@@ -500,15 +500,21 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
     methodName = "onMqttIDMessage()";
     Log.verboseln("Entering...");
 
-    char *topics[10];
+    logMQTTMessage(topic, len, payload);
+
+    char topics[10][25];
     int topicCounter = 0;
     char *token = strtok(topic, "/");
+    Log.verboseln("Tokenizing...");
 
     while (token != NULL)
     {
+        Log.verboseln("Tokenized another topic... %s", topics[topicCounter - 1]);
         strcpy(topics[topicCounter++], token);
         token = strtok(NULL, "/");
     }
+
+    Log.verboseln("Tokenize complete!!");
 
     if (strcmp(topic, appName) == 0) // Handle all wichime messages
     {
