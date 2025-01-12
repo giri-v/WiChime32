@@ -729,7 +729,7 @@ void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
         Log.infoln("Wakeup caused by ULP program");
         break;
     default:
-        Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
+        Log.infoln("Wakeup was not caused by deep sleep: %d", wakeup_reason);
         break;
     }
 }

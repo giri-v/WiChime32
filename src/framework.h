@@ -74,8 +74,6 @@ int middleCenterY = screenCenterY;
 int leftCenterX = tft.width() / 4;
 int rightCenterX = tft.width() * 3 / 4;
 
-int chip_id = ESP.getEfuseMac();
-
 #ifdef APP_NAME
 const char *appName = APP_NAME;
 #endif
