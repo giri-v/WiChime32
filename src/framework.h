@@ -67,6 +67,13 @@ MqttStream mqttStream = MqttStream(&client);
 char topic[128] = "log/foo";
 #endif
 
+#include "AudioFileSourceSD.h"
+#include "AudioFileSourceID3.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioOutputI2S.h"
+
+
+
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 OpenFontRender ofr;
 int screenWidth = tft.width();
@@ -190,6 +197,27 @@ bool isNumeric(char *str)
             return false;
     }
     return true;
+}
+
+void playMP3(char *filename)
+{
+    AudioFileSourceSD *file;
+    AudioGeneratorMP3 *mp3;
+    AudioOutputI2S *out;
+    AudioFileSourceID3 *id3;
+
+    file = new AudioFileSourceSD(filename);
+    id3 = new AudioFileSourceID3(file);
+    out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
+    out->SetOutputModeMono(true);
+    out->SetGain(1.0);
+    mp3 = new AudioGeneratorMP3();
+    mp3->begin(id3, out);
+    while (mp3->isRunning())
+    {
+        if (!mp3->loop())
+            mp3->stop();
+    }
 }
 
 void pngDraw(PNGDRAW *pDraw)
