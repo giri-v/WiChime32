@@ -22,12 +22,11 @@ void onMqttMessage(char *topic, char *payload,
                    size_t len, size_t index, size_t total);
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
-void setupFramework();
+void framework_setup();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void initSD();
 void framework_loop();
-
 
 void initSD()
 {
@@ -46,7 +45,9 @@ void initSD()
         Log.errorln("No SD card attached");
         return;
     }
-    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC" : cardType == CARD_SDHC ? "SDHC" : "UNKNOWN");
+    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
+                                                              : cardType == CARD_SDHC ? "SDHC"
+                                                                                      : "UNKNOWN");
 
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
     Log.infoln("SD Card Size: %lluMB", cardSize);
@@ -61,7 +62,6 @@ void framework_loop()
 
     playMP3Loop();
 }
-
 
 void initFS()
 {
@@ -555,8 +555,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     Log.verboseln("Entering...");
 
     logMQTTMessage(topic, len, payload);
-    
-    
+
     char savedTopic[261];
     strcpy(savedTopic, topic);
 
@@ -578,7 +577,6 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         methodName = oldMethodName;
         return;
     }
-
 
     Log.verboseln("Processing MQTT message...");
     if ((strcmp(topic, appName) == 0) && (topicCounter > 1))
@@ -608,11 +606,11 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
                 else
                 { // This command is for another instance
                 }
-                }
-                else
-                {
-                    Log.errorln("AppSecret not found in message!");
-                }
+            }
+            else
+            {
+                Log.errorln("AppSecret not found in message!");
+            }
         }
         else
         { // This is not a properly formatted command (might be a response)
@@ -629,7 +627,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
                 // This is another App's message we are interested in
 
                 // Test if parsing succeeds.
-                    otherAppMessageHandler[i](savedTopic, len, payload);
+                otherAppMessageHandler[i](savedTopic, len, payload);
             }
         }
     }
@@ -647,7 +645,7 @@ void logMACAddress(uint8_t baseMac[6])
     Log.infoln(mac);
 }
 
-void setupFramework()
+void framework_setup()
 {
     // Framework: Setting up logging
     Serial.begin(115200);
@@ -712,7 +710,7 @@ void setupFramework()
     initSD();
     initFS();
 
-    initAudioOutput();
+    //initAudioOutput();
 
     setupDisplay();
     // Framework region end

@@ -34,7 +34,7 @@ void setup()
   String oldMethodName = methodName;
   methodName = "setup()";
 
-  setupFramework();
+  framework_setup();
 
   app_setup();
 
