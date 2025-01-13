@@ -8,7 +8,6 @@
 #define APP_NAME "esp32FWApp"
 #include <secrets.h>
 
-
 #define LOG_LEVEL LOG_LEVEL_INFO
 // #define LOG_LEVEL LOG_LEVEL_VERBOSE
 
@@ -32,11 +31,11 @@ void setup()
   String oldMethodName = methodName;
   methodName = "setup()";
 
-  setupFramework();
+  framework_setup();
 
   app_setup();
 
-  connectToWifi();
+  framework_start();
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -44,7 +43,7 @@ void setup()
 
 void loop()
 {
-  TLogPlus::Log.loop();
-
+  framework_loop();
+  
   app_loop();
 }

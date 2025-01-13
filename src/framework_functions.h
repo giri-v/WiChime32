@@ -23,12 +23,11 @@ void onMqttMessage(char *topic, char *payload,
                    size_t len, size_t index, size_t total);
 void logMACAddress(uint8_t baseMac[6]);
 void setAppInstanceID();
-void setupFramework();
+void framework_setup();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void framework_loop();
 void initSD();
-
 
 void initFS()
 {
@@ -79,12 +78,7 @@ void initSD()
     methodName = oldMethodName;
 }
 
-void framework_loop()
-{
-    TLogPlus::Log.loop();
 
-    playMP3Loop();
-}
 
 void connectToWifi()
 {
@@ -92,7 +86,6 @@ void connectToWifi()
     methodName = "connectToWifi()";
 
     Log.infoln("Connecting...");
-    WiFi.hostname(hostname);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     methodName = oldMethodName;
@@ -118,6 +111,7 @@ void resetWifiFailCount(TimerHandle_t xTimer)
     (void)xTimer;
 
     wifiFailCount = 0;
+    xTimerStop(xTimer, 0);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -387,8 +381,7 @@ void onWifiDisconnect(const WiFiEvent_t &event)
     // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     if (wifiFailCount == 0)
     {
-        wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(10000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
-        xTimerStart(wifiFailCountTimer, pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000));
+        xTimerStart(wifiFailCountTimer, 0);
     }
     wifiFailCount++;
     if (wifiFailCount > maxWifiFailCount)
@@ -721,8 +714,7 @@ void logMACAddress(uint8_t baseMac[6])
     Log.infoln(mac);
 }
 
-
-void setupFramework()
+void framework_setup()
 {
     // Framework: Setting up logging
     Serial.begin(115200);
@@ -800,6 +792,7 @@ void setupFramework()
                                       pdFALSE, (void *)0,
                                       reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
 
+    WiFi.hostname(hostname);
     WiFi.onEvent(WiFiEvent);
 
     mqttClient.onConnect(onMqttConnect);
@@ -821,6 +814,19 @@ void setupFramework()
                                               reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
         xTimerStart(appInstanceIDWaitTimer, 0);
     }
+}
+
+void framework_loop()
+{
+    TLogPlus::Log.loop();
+
+    if (!mp3Done)
+        playMP3Loop();
+}
+
+void framework_start()
+{
+    connectToWifi();
 }
 
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
@@ -890,6 +896,5 @@ void logResetReason(esp_reset_reason_t reset_reason)
         break;
     }
 }
-
 
 #endif // FRAMEWORK_FUNCTIONS_H

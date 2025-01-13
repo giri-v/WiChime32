@@ -3,7 +3,7 @@
 
 #include "framework.h"
 
-#include "../assets/fonts/Roboto.h"
+#include "../assets/fonts/NotoSans_Bold.h"
 
 // ********* Framework App Parameters *****************
 
@@ -105,7 +105,7 @@ void setupDisplay()
     tft.setRotation(2);
     tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
-    ofr.loadFont(Roboto, sizeof(Roboto));
+    ofr.loadFont(NotoSans_Bold, sizeof(NotoSans_Bold));
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
     ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);

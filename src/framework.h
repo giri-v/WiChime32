@@ -93,6 +93,7 @@ char topic[128] = "log/foo";
 
 AudioGeneratorMP3 *mp3;
 AudioOutputI2S *out;
+bool mp3Done = true;
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 OpenFontRender ofr;
@@ -196,7 +197,14 @@ void playMP3(char *filename)
     file = new AudioFileSourceSD(filename);
     id3 = new AudioFileSourceID3(file);
     mp3 = new AudioGeneratorMP3();
-    mp3->begin(id3, out);
+    if (!mp3->begin(id3, out))
+    {
+        Log.errorln("Failed to begin MP3 decode.");
+    }
+    else
+    {
+        mp3Done = false;
+    }
 }
 
 void playMP3Loop()
@@ -204,7 +212,14 @@ void playMP3Loop()
     if (mp3->isRunning())
     {
         if (!mp3->loop())
+        {
             mp3->stop();
+            mp3Done = true;
+        }
+    }
+    else
+    {
+        mp3Done = true;
     }
 }
 
