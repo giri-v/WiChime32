@@ -25,8 +25,29 @@ void setAppInstanceID();
 void framework_setup();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
-void initSD();
 void framework_loop();
+void initSD();
+
+void initFS()
+{
+#ifndef LittleFS
+    // Initialize SPIFFS
+    if (!SPIFFS.begin(true))
+    {
+        Log.errorln("An Error has occurred while mounting SPIFFS");
+        return;
+    }
+#else
+    if (!LittleFS.begin())
+    {
+        Log.errorln("Flash FS initialisation failed!");
+        while (1)
+            yield(); // Stay here twiddling thumbs waiting
+    }
+    Log.infoln("Flash FS available!");
+
+#endif
+}
 
 void initSD()
 {
@@ -56,34 +77,7 @@ void initSD()
     methodName = oldMethodName;
 }
 
-void framework_loop()
-{
-    TLogPlus::Log.loop();
 
-    if (!mp3Done)
-        playMP3Loop();
-}
-
-void initFS()
-{
-#ifndef LittleFS
-    // Initialize SPIFFS
-    if (!SPIFFS.begin(true))
-    {
-        Log.errorln("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-#else
-    if (!LittleFS.begin())
-    {
-        Log.errorln("Flash FS initialisation failed!");
-        while (1)
-            yield(); // Stay here twiddling thumbs waiting
-    }
-    Log.infoln("Flash FS available!");
-
-#endif
-}
 
 void connectToWifi()
 {
@@ -91,7 +85,6 @@ void connectToWifi()
     methodName = "connectToWifi()";
 
     Log.infoln("Connecting...");
-    WiFi.hostname(hostname);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     methodName = oldMethodName;
@@ -117,6 +110,7 @@ void resetWifiFailCount(TimerHandle_t xTimer)
     (void)xTimer;
 
     wifiFailCount = 0;
+    xTimerStop(xTimer, 0);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -235,6 +229,63 @@ int getlatestFirmware(char *fileName)
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
     return httpCode;
+}
+
+int webGet(String req, String &res)
+{
+    String oldMethodName = methodName;
+    methodName = "webGet(String req, String &res)";
+
+    int result = -1;
+
+    Log.verboseln("Connecting to http://%s:%d%s", HTTP_SERVER, HTTP_PORT,
+                  req.c_str());
+
+    WiFiClient client;
+    HTTPClient http;
+    String payload;
+    Log.verboseln("[HTTP] begin...");
+
+    // int connRes = client.connect(IPAddress(192,168,0,12), 5000);
+    // Log.verboseln("Connected: %d", connRes);
+
+    // if (http.begin(client, req))
+    if (http.begin(client, HTTP_SERVER, HTTP_PORT, req))
+    { // HTTP
+
+        Log.verboseln("[HTTP] GET...");
+        // start connection and send HTTP header
+        int httpCode = http.GET();
+        result = httpCode;
+
+        // httpCode will be negative on error
+        if (httpCode > 0)
+        {
+            // HTTP header has been send and Server response header has
+            // been handled
+            Log.verboseln("[HTTP] GET... code: %d\n", httpCode);
+
+            // file found at server
+            if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
+            {
+                res = http.getString();
+            }
+        }
+        else
+        {
+            Log.errorln("[HTTP] GET... failed, error: %s", http.errorToString(httpCode).c_str());
+        }
+
+        http.end();
+    }
+    else
+    {
+        Log.warningln("[HTTP] Unable to connect");
+    }
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return result;
 }
 
 void checkFWUpdate()
@@ -445,7 +496,7 @@ void onMqttConnect(bool sessionPresent)
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
     String oldMethodName = methodName;
-    methodName = "onMqttConnect(bool sessionPresent)";
+    methodName = "onMqttDisconnect(AsyncMqttClientDisconnectReason reason)";
     Log.verboseln("Entering...");
 
     (void)reason;
@@ -487,15 +538,21 @@ void onMqttIDMessage(char *topic, char *payload, AsyncMqttClientMessagePropertie
     methodName = "onMqttIDMessage()";
     Log.verboseln("Entering...");
 
+    logMQTTMessage(topic, len, payload);
+
     char topics[10][25];
     int topicCounter = 0;
     char *token = strtok(topic, "/");
+    Log.verboseln("Tokenizing...");
 
     while (token != NULL)
     {
+        Log.verboseln("Tokenized another topic... %s", topics[topicCounter - 1]);
         strcpy(topics[topicCounter++], token);
         token = strtok(NULL, "/");
     }
+
+    Log.verboseln("Tokenize complete!!");
 
     if (strcmp(topic, appName) == 0) // Handle all wichime messages
     {
@@ -710,7 +767,6 @@ void framework_setup()
 
     initSD();
     initFS();
-
     initAudioOutput();
 
     setupDisplay();
@@ -725,6 +781,7 @@ void framework_setup()
                                       pdFALSE, (void *)0,
                                       reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
 
+    WiFi.hostname(hostname);
     WiFi.onEvent(WiFiEvent);
 
     mqttClient.onConnect(onMqttConnect);
@@ -748,6 +805,19 @@ void framework_setup()
     }
 }
 
+void framework_loop()
+{
+    TLogPlus::Log.loop();
+
+    if (!mp3Done)
+        playMP3Loop();
+}
+
+void framework_start()
+{
+    connectToWifi();
+}
+
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
 {
     switch (wakeup_reason)
@@ -768,7 +838,7 @@ void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason)
         Log.infoln("Wakeup caused by ULP program");
         break;
     default:
-        Log.infoln("Wakeup was not caused by deep sleep: %d", wakeup_reason);
+        Log.infoln("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
         break;
     }
 }

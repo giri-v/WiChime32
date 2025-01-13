@@ -1,5 +1,3 @@
-
-
 // ******************************************************************
 // ******************************************************************
 // ****************** Framework Configuration ***********************
@@ -38,7 +36,7 @@ void setup()
 
   app_setup();
 
-  connectToWifi();
+  framework_start();
 
   Log.verboseln("Exiting...");
   methodName = oldMethodName;
@@ -47,5 +45,6 @@ void setup()
 void loop()
 {
   framework_loop();
+  
   app_loop();
 }

@@ -97,7 +97,6 @@ char topic[128] = "log/foo";
 
 AudioGeneratorMP3 *mp3;
 AudioOutputI2S *out;
-
 bool mp3Done = true;
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
@@ -118,6 +117,7 @@ int32_t yPos = 0;
 #ifdef APP_NAME
 const char *appName = APP_NAME;
 #endif
+
 
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
@@ -200,6 +200,48 @@ int32_t pngSeek(PNGFILE *page, int32_t position)
     return pngfile.seek(position);
 }
 
+// **************** Debug Parameters ************************
+String methodName = "";
+
+<<<<<<< HEAD
+// Here are the callback functions that the decPNG library
+// will use to open files, fetch data and close the file.
+
+File pngfile;
+
+void *pngOpen(const char *filename, int32_t *size)
+{
+    Log.verboseln("Attempting to open %s\n", filename);
+    pngfile = SPIFFS.open(filename, "r");
+    *size = pngfile.size();
+    return &pngfile;
+}
+
+void pngClose(void *handle)
+{
+    File pngfile = *((File *)handle);
+    if (pngfile)
+        pngfile.close();
+}
+
+int32_t pngRead(PNGFILE *page, uint8_t *buffer, int32_t length)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.read(buffer, length);
+}
+
+int32_t pngSeek(PNGFILE *page, int32_t position)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.seek(position);
+}
+
+=======
+>>>>>>> 4ed50ef158fa61d5c9c523f2c9462cf0971eec6b
 bool isNullorEmpty(char *str)
 {
     if ((str == NULL) || (str[0] == '\0'))
