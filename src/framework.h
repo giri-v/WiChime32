@@ -10,9 +10,29 @@ extern "C"
 #include "freertos/timers.h"
 }
 
+#ifndef SECRETS_H
+#define SECRETS_H
+
+#define HOSTNAME "myESP8266";
+#define NTP_SERVER "pool.ntp.org"
+
+#define WIFI_SSID "APName"
+#define WIFI_PASSWORD "APPassword"
+
+#define HTTP_SERVER "192.168.0.12"
+#define HTTP_PORT 5000
+
+#define MQTT_HOST IPAddress(192, 168, 0, 200)
+#define MQTT_PORT 1883
+
+#define LATITUDE 37.3380937
+#define LONGITUDE -121.8853892
+
+#endif // SECRETS_H
 #include <WiFi.h>
 #include <Preferences.h>
 #include <SPI.h>
+#include <SD.h>
 
 #ifndef LittleFS
 #include <SPIFFS.h>
@@ -21,8 +41,12 @@ extern "C"
 #endif
 #include <Update.h>
 
+#define SD_CS 5
+
 #include <TFT_eSPI.h>
-#include <OpenFontRender.h> 
+#include <OpenFontRender.h>
+#include <PNGdec.h>
+#define MAX_IMAGE_WIDTH 320
 
 #include <HTTPClient.h>
 #include <AsyncMqttClient.h>
@@ -62,8 +86,13 @@ MqttStream mqttStream = MqttStream(&client);
 char topic[128] = "log/foo";
 #endif
 
+#include "AudioFileSourceSD.h"
+#include "AudioFileSourceID3.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioOutputI2S.h"
 
-
+AudioGeneratorMP3 *mp3;
+AudioOutputI2S *out;
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 OpenFontRender ofr;
@@ -149,6 +178,34 @@ bool isNumeric(char *str)
             return false;
     }
     return true;
+}
+
+void initAudioOutput()
+{
+    out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
+    out->SetOutputModeMono(true);
+    out->SetGain(1.0);
+}
+
+
+void playMP3(char *filename)
+{
+    AudioFileSourceSD *file;
+    AudioFileSourceID3 *id3;
+
+    file = new AudioFileSourceSD(filename);
+    id3 = new AudioFileSourceID3(file);
+    mp3 = new AudioGeneratorMP3();
+    mp3->begin(id3, out);
+}
+
+void playMP3Loop()
+{
+    if (mp3->isRunning())
+    {
+        if (!mp3->loop())
+            mp3->stop();
+    }
 }
 
 void clearScreen()

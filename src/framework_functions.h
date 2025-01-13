@@ -26,6 +26,8 @@ void setAppInstanceID();
 void setupFramework();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
+void framework_loop();
+void initSD();
 
 
 void initFS()
@@ -47,6 +49,41 @@ void initFS()
     Log.infoln("Flash FS available!");
 
 #endif
+}
+
+void initSD()
+{
+    String oldMethodName = methodName;
+    methodName = "initSD()";
+    Log.verboseln("Entering...");
+
+    if (!SD.begin(SD_CS))
+    {
+        Log.errorln("SD Card Mount Failed");
+        return;
+    }
+    uint8_t cardType = SD.cardType();
+    if (cardType == CARD_NONE)
+    {
+        Log.errorln("No SD card attached");
+        return;
+    }
+    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
+                                                              : cardType == CARD_SDHC ? "SDHC"
+                                                                                      : "UNKNOWN");
+
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    Log.infoln("SD Card Size: %lluMB", cardSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+
+void framework_loop()
+{
+    TLogPlus::Log.loop();
+
+    playMP3Loop();
 }
 
 void connectToWifi()
@@ -747,7 +784,9 @@ void setupFramework()
         Log.infoln("AppInstanceID: %d", appInstanceID);
     }
 
+    initSD();
     initFS();
+    initAudioOutput();
 
     setupDisplay();
     // Framework region end
@@ -757,6 +796,9 @@ void setupFramework()
                                       (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
     wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
                                       (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000),
+                                      pdFALSE, (void *)0,
+                                      reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
 
     WiFi.onEvent(WiFiEvent);
 
