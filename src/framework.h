@@ -95,10 +95,10 @@ char topic[128] = "log/foo";
 #include "AudioGeneratorMP3.h"
 #include "AudioOutputI2S.h"
 
-
 AudioGeneratorMP3 *mp3;
 AudioOutputI2S *out;
-AudioFileSourceID3 *id3;
+
+bool mp3Done = true;
 
 TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
 OpenFontRender ofr;
@@ -200,7 +200,6 @@ int32_t pngSeek(PNGFILE *page, int32_t position)
     return pngfile.seek(position);
 }
 
-
 bool isNullorEmpty(char *str)
 {
     if ((str == NULL) || (str[0] == '\0'))
@@ -235,11 +234,19 @@ void initAudioOutput()
 void playMP3(char *filename)
 {
     AudioFileSourceSD *file;
-
+    AudioFileSourceID3 *id3;
+    
     file = new AudioFileSourceSD(filename);
     id3 = new AudioFileSourceID3(file);
     mp3 = new AudioGeneratorMP3();
-    mp3->begin(id3, out);
+    if (!mp3->begin(id3, out))
+    {
+        Log.errorln("Failed to play MP3!");
+    }
+    else
+    {
+        mp3Done = false;
+    }
 }
 
 void playMP3Loop()
@@ -247,7 +254,10 @@ void playMP3Loop()
     if (mp3->isRunning())
     {
         if (!mp3->loop())
+        {
             mp3->stop();
+            mp3Done = true;
+        }
     }
 }
 

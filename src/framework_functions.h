@@ -60,7 +60,8 @@ void framework_loop()
 {
     TLogPlus::Log.loop();
 
-    playMP3Loop();
+    if (!mp3Done)
+        playMP3Loop();
 }
 
 void initFS()
@@ -710,7 +711,7 @@ void framework_setup()
     initSD();
     initFS();
 
-    //initAudioOutput();
+    initAudioOutput();
 
     setupDisplay();
     // Framework region end
