@@ -26,7 +26,7 @@
 // ********* Framework App Parameters *****************
 
 int appVersion = 1;
-const char *appSecret = "536CB6A57A55C82BEDD22A9566A47";
+const char *appSecret = APP_SECRET;
 
 // ********** Connectivity Parameters **********
 

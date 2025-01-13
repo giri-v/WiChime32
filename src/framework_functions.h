@@ -26,6 +26,8 @@ void setupFramework();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void initSD();
+void framework_loop();
+
 
 void initSD()
 {
@@ -53,6 +55,12 @@ void initSD()
     methodName = oldMethodName;
 }
 
+void framework_loop()
+{
+    TLogPlus::Log.loop();
+
+    playMP3Loop();
+}
 
 
 void initFS()
@@ -703,6 +711,8 @@ void setupFramework()
 
     initSD();
     initFS();
+
+    initAudioOutput();
 
     setupDisplay();
     // Framework region end
