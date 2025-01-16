@@ -3,6 +3,18 @@
 
 #include "framework.h"
 
+int maxWifiFailCount = 5;
+int wifiFailCountTimeLimit = 10;
+TimerHandle_t mqttReconnectTimer;
+TimerHandle_t wifiReconnectTimer;
+// TimerHandle_t checkFWUpdateTimer;
+TimerHandle_t appInstanceIDWaitTimer;
+TimerHandle_t wifiFailCountTimer;
+
+int wifiFailCount = 0;
+
+char latestFirmwareFileName[100];
+
 void initFS();
 void connectToWifi();
 void connectToMqtt();
@@ -31,57 +43,6 @@ void reboot(const char* message)
 {
     Log.infoln("Rebooting ESP32: %s", message);
     ESP.restart();
-}
-
-void initSD();
-
-void initFS()
-{
-#ifndef LittleFS
-    // Initialize SPIFFS
-    if (!SPIFFS.begin(true))
-    {
-        Log.errorln("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-#else
-    if (!LittleFS.begin())
-    {
-        Log.errorln("Flash FS initialisation failed!");
-        while (1)
-            yield(); // Stay here twiddling thumbs waiting
-    }
-    Log.infoln("Flash FS available!");
-
-#endif
-}
-
-void initSD()
-{
-    String oldMethodName = methodName;
-    methodName = "initSD()";
-    Log.verboseln("Entering...");
-
-    if (!SD.begin(SD_CS))
-    {
-        Log.errorln("SD Card Mount Failed");
-        return;
-    }
-    uint8_t cardType = SD.cardType();
-    if (cardType == CARD_NONE)
-    {
-        Log.errorln("No SD card attached");
-        return;
-    }
-    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
-                                                              : cardType == CARD_SDHC ? "SDHC"
-                                                                                      : "UNKNOWN");
-
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    Log.infoln("SD Card Size: %lluMB", cardSize);
-
-    Log.verboseln("Exiting...");
-    methodName = oldMethodName;
 }
 
 

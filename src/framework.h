@@ -92,34 +92,10 @@ MqttStream mqttStream = MqttStream(&client);
 char topic[128] = "log/foo";
 #endif
 
-#include "AudioFileSourceSD.h"
-#include "AudioFileSourceID3.h"
-#include "AudioGeneratorMP3.h"
-#include "AudioOutputI2S.h"
+#define minimum(a, b) (((a) < (b)) ? (a) : (b))
+#define maximum(a, b) (((a) > (b)) ? (a) : (b))
 
-AudioGeneratorMP3 *mp3;
-AudioOutputI2S *out;
-bool mp3Done = true;
-
-TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
-OpenFontRender ofr;
-int screenWidth = tft.width();
-int screenHeight = tft.height();
-int screenCenterX = tft.width() / 2;
-int screenCenterY = tft.height() / 2;
-int topCenterY = tft.height() / 6;
-int bottomCenterY = tft.height() * 5 / 6;
-int middleCenterY = screenCenterY;
-int leftCenterX = tft.width() / 4;
-int rightCenterX = tft.width() * 3 / 4;
-PNG png;
-int32_t xPos = 0;
-int32_t yPos = 0;
-
-#ifdef APP_NAME
 const char *appName = APP_NAME;
-#endif
-
 const char *appSecret = APP_SECRET;
 #define FIRMWARE_VERSION "v0.0.1"
 
@@ -128,7 +104,6 @@ char friendlyName[100] = "NoNameSet";
 
 bool isFirstLoop = true;
 bool isGoodTime = false;
-bool isFirstDraw = true;
 
 #ifdef NTP_SERVER
 const char *ntpServer = NTP_SERVER;
@@ -137,13 +112,8 @@ const char *ntpServer = NTP_SERVER;
 // ********** Connectivity Parameters **********
 AsyncWebServer webServer(80);
 AsyncMqttClient mqttClient;
-TimerHandle_t mqttReconnectTimer;
-TimerHandle_t wifiReconnectTimer;
-TimerHandle_t checkFWUpdateTimer;
-TimerHandle_t appInstanceIDWaitTimer;
-TimerHandle_t wifiFailCountTimer;
 
-int wifiFailCount = 0;
+
 
 int volume = 50; // Volume is %
 int bootCount = 0;
@@ -159,51 +129,12 @@ String hostname = HOSTNAME;
 
 uint8_t macAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-// MQTT Topics (25 character limit per level)
-char onlineTopic[100];
-char willTopic[100];
-char appSubTopic[100];
 
-char latestFirmwareFileName[100];
 
 // **************** Debug Parameters ************************
 String methodName = "";
 
-// Here are the callback functions that the decPNG library
-// will use to open files, fetch data and close the file.
-
-File pngfile;
-
-void *pngOpen(const char *filename, int32_t *size)
-{
-    Log.verboseln("Attempting to open %s\n", filename);
-    pngfile = SPIFFS.open(filename, "r");
-    *size = pngfile.size();
-    return &pngfile;
-}
-
-void pngClose(void *handle)
-{
-    File pngfile = *((File *)handle);
-    if (pngfile)
-        pngfile.close();
-}
-
-int32_t pngRead(PNGFILE *page, uint8_t *buffer, int32_t length)
-{
-    if (!pngfile)
-        return 0;
-    page = page; // Avoid warning
-    return pngfile.read(buffer, length);
-}
-
-int32_t pngSeek(PNGFILE *page, int32_t position)
-{
-    if (!pngfile)
-        return 0;
-    page = page; // Avoid warning
-    return pngfile.seek(position);
-}
+#pragma region Standard Helper Functions
 
 bool isNullorEmpty(char *str)
 {
@@ -244,8 +175,6 @@ String humanReadableSize(const size_t bytes)
 }
 
 #pragma endregion
-
-
 
 #pragma region File System
 
@@ -384,7 +313,7 @@ AudioOutputI2S *out;
 bool mp3Done = true;
 
 /// @fn void initAudioOutput()
-/// @brief The only function to 
+/// @brief The only function to
 
 void initAudioOutput()
 {
@@ -397,13 +326,13 @@ void playMP3(char *filename)
 {
     AudioFileSourceSD *file;
     AudioFileSourceID3 *id3;
-    
+
     file = new AudioFileSourceSD(filename);
     id3 = new AudioFileSourceID3(file);
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
     {
-        Log.errorln("Failed to play MP3!");
+        Log.errorln("Failed to begin MP3 decode.");
     }
     else
     {
@@ -421,8 +350,75 @@ void playMP3Loop()
             mp3Done = true;
         }
     }
+    else
+    {
+        mp3Done = true;
+    }
 }
 
+#endif
+
+#pragma endregion
+
+#pragma region PNG Decoder Functions
+
+#ifdef USE_PNG_DECODER
+
+#include <PNGdec.h>
+
+#define MAX_IMAGE_WIDTH 320
+
+// PNGDec Veriables
+File pngfile;
+PNG png;
+int32_t xPos = 0;
+int32_t yPos = 0;
+
+// PNGDec File I/O Helper Functions
+void *pngOpen(const char *filename, int32_t *size)
+{
+    Log.verboseln("Attempting to open %s\n", filename);
+    pngfile = SPIFFS.open(filename, "r");
+    *size = pngfile.size();
+    return &pngfile;
+}
+
+#ifdef USE_SD_CARD
+void *pngOpenSD(const char *filename, int32_t *size)
+{
+    Log.verboseln("Attempting to open %s\n", filename);
+    pngfile = SD.open(filename, "r");
+    *size = pngfile.size();
+    return &pngfile;
+}
+#endif
+
+void pngClose(void *handle)
+{
+    File pngfile = *((File *)handle);
+    if (pngfile)
+        pngfile.close();
+}
+
+int32_t pngRead(PNGFILE *page, uint8_t *buffer, int32_t length)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.read(buffer, length);
+}
+
+int32_t pngSeek(PNGFILE *page, int32_t position)
+{
+    if (!pngfile)
+        return 0;
+    page = page; // Avoid warning
+    return pngfile.seek(position);
+}
+
+/// @brief PNGDecoder Helper function to allow the decoder engine to draw a single line
+///        of the image
+/// @param pDraw
 void pngDraw(PNGDRAW *pDraw)
 {
     uint16_t lineBuffer[MAX_IMAGE_WIDTH];
@@ -456,38 +452,166 @@ void drawPNG(const char *filename, int x, int y)
     }
 }
 
-void clearScreen()
-{
-    tft.fillScreen(TFT_BLACK);
-}
+#ifdef USE_SD_CARD
 
-void drawString(String text, int x, int y)
+void drawPNGFromSD(const char *filename, int x, int y)
 {
-    ofr.setCursor(x, y);
-    if (ofr.getAlignment() == Align::MiddleCenter)
+
+    int16_t rc = png.open(filename, pngOpenSD, pngClose, pngRead, pngSeek, pngDraw);
+    xPos = x;
+    yPos = y;
+    if (rc == PNG_SUCCESS)
     {
-        ofr.setCursor(x, y - ofr.getFontSize() / 5 - (ofr.getFontSize() > 36 ? 2 : 1));
+        tft.startWrite();
+        Log.verboseln("image specs: (%d x %d), %d bpp, pixel type: %d\n", png.getWidth(), png.getHeight(), png.getBpp(), png.getPixelType());
+        uint32_t dt = millis();
+        if (png.getWidth() > MAX_IMAGE_WIDTH)
+        {
+            Serial.println("Image too wide for allocated lin buffer!");
+        }
+        else
+        {
+            rc = png.decode(NULL, 0);
+            png.close();
+        }
+        tft.endWrite();
     }
-    ofr.printf(text.c_str());
+}
+#endif
+
+#endif
+
+#pragma endregion
+
+#pragma region JPEG Decoder Functions
+
+#ifdef USE_JPEG_DECODER
+
+#include <JPEGDecoder.h>
+
+void renderJPEG(int xpos, int ypos)
+{
+
+    // retrieve information about the image
+    uint16_t *pImg;
+    uint16_t mcu_w = JpegDec.MCUWidth;
+    uint16_t mcu_h = JpegDec.MCUHeight;
+    uint32_t max_x = JpegDec.width;
+    uint32_t max_y = JpegDec.height;
+
+    // Jpeg images are draw as a set of image block (tiles) called Minimum Coding Units (MCUs)
+    // Typically these MCUs are 16x16 pixel blocks
+    // Determine the width and height of the right and bottom edge image blocks
+    uint32_t min_w = minimum(mcu_w, max_x % mcu_w);
+    uint32_t min_h = minimum(mcu_h, max_y % mcu_h);
+
+    // save the current image block size
+    uint32_t win_w = mcu_w;
+    uint32_t win_h = mcu_h;
+
+    // record the current time so we can measure how long it takes to draw an image
+    uint32_t drawTime = millis();
+
+    // save the coordinate of the right and bottom edges to assist image cropping
+    // to the screen size
+    max_x += xpos;
+    max_y += ypos;
+
+    // read each MCU block until there are no more
+    while (JpegDec.read())
+    {
+
+        // save a pointer to the image block
+        pImg = JpegDec.pImage;
+
+        // calculate where the image block should be drawn on the screen
+        int mcu_x = JpegDec.MCUx * mcu_w + xpos; // Calculate coordinates of top left corner of current MCU
+        int mcu_y = JpegDec.MCUy * mcu_h + ypos;
+
+        // check if the image block size needs to be changed for the right edge
+        if (mcu_x + mcu_w <= max_x)
+            win_w = mcu_w;
+        else
+            win_w = min_w;
+
+        // check if the image block size needs to be changed for the bottom edge
+        if (mcu_y + mcu_h <= max_y)
+            win_h = mcu_h;
+        else
+            win_h = min_h;
+
+        // copy pixels into a contiguous block
+        if (win_w != mcu_w)
+        {
+            uint16_t *cImg;
+            int p = 0;
+            cImg = pImg + win_w;
+            for (int h = 1; h < win_h; h++)
+            {
+                p += mcu_w;
+                for (int w = 0; w < win_w; w++)
+                {
+                    *cImg = *(pImg + w + p);
+                    cImg++;
+                }
+            }
+        }
+
+        // calculate how many pixels must be drawn
+        uint32_t mcu_pixels = win_w * win_h;
+
+        tft.startWrite();
+
+        // draw image MCU block only if it will fit on the screen
+        if ((mcu_x + win_w) <= tft.width() && (mcu_y + win_h) <= tft.height())
+        {
+
+            // Now set a MCU bounding window on the TFT to push pixels into (x, y, x + width - 1, y + height - 1)
+            tft.setAddrWindow(mcu_x, mcu_y, win_w, win_h);
+
+            // Write all MCU pixels to the TFT window
+            while (mcu_pixels--)
+            {
+                // Push each pixel to the TFT MCU area
+                tft.pushColor(*pImg++);
+            }
+        }
+        else if ((mcu_y + win_h) >= tft.height())
+            JpegDec.abort(); // Image has run off bottom of screen so abort decoding
+
+        tft.endWrite();
+    }
+
+    // calculate how long it took to draw the image
+    drawTime = millis() - drawTime;
+
+    // print the results to the serial port
+    // Log.infoln("renderJPEG(): Total render time was: %ims", drawTime);
 }
 
-void drawString(String text, int x, int y, int font_size)
+void drawArrayJpeg(const uint8_t arrayname[], uint32_t array_size, int xpos, int ypos)
 {
-    ofr.setFontSize(font_size);
-    drawString(text, x, y);
+
+    boolean decoded = JpegDec.decodeArray(arrayname, array_size);
+
+    if (decoded)
+    {
+        // render the image onto the screen at given coordinates
+        renderJPEG(xpos, ypos);
+    }
+    else
+    {
+        Log.errorln("Jpeg file format not supported!");
+    }
 }
 
-void drawString(String text, int x, int y, int font_size, int color)
-{
-    ofr.setFontColor(color);
-    drawString(text, x, y, font_size);
-}
+#endif
 
-void drawString(String text, int x, int y, int font_size, int color, int bg_color)
-{
-    ofr.setFontColor(color, bg_color);
-    drawString(text, x, y, font_size);
-}
+#pragma endregion
+
+#pragma region HTTP Client Functions
+
+#include <HTTPClient.h>
 
 int webGet(String req, String &res)
 {
@@ -545,4 +669,6 @@ int webGet(String req, String &res)
     methodName = oldMethodName;
     return result;
 }
+#pragma endregion
+
 #endif // FRAMEWORK_H

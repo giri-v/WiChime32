@@ -42,8 +42,6 @@ typedef void (*mqttMessageHandler)(char *topic, char *payload,
                                    AsyncMqttClientMessageProperties properties,
                                    size_t len, size_t index, size_t total);
 
-int maxWifiFailCount = 5;
-int wifiFailCountTimeLimit = 10;
 
 // ********** App Global Variables **********
 
@@ -55,6 +53,8 @@ const int daylightOffset_sec = 3600;
 // Should be /internal/iot/firmware
 const char *firmwareUrl = "/firmware/";
 const char *appRootUrl = "/internal/iot/";
+
+char appSubTopic[100];
 
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
@@ -94,6 +94,7 @@ int currentTempFontSize = 108;
 int dayOfWeekPosY = 18;
 int datePosY = 72;
 int timePosY = screenCenterY;
+int middleCenterY = tft.height() / 2;
 
 const char dailyForecastUrl[51] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast";
 const char hourlyForecastUrl[58] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast/hourly";
@@ -246,6 +247,10 @@ void drawSplashScreen()
     {
         drawPNG(appIconFilename, screenCenterX - 50, 10);
     }
+    else
+    {
+        Log.errorln("Couldn't find icon file: %s", appIconFilename);
+    }
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -290,9 +295,6 @@ void setupDisplay()
 
 void initAppStrings()
 {
-    sprintf(onlineTopic, "%s/online", appName);
-    sprintf(willTopic, "%s/offline", appName);
-
     sprintf(appSubTopic, "%s/#", appName);
 
     otherAppTopicCount = 1;

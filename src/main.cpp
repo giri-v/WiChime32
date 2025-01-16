@@ -1,21 +1,15 @@
-// ******************************************************************
-// ******************************************************************
-// ****************** Framework Configuration ***********************
-// ******************************************************************
-// ******************************************************************
+////////////////////////////////////////////////////////////////////
+/// @file main.cpp
+/// @brief Application Entry Point and Main Functions
+////////////////////////////////////////////////////////////////////
 
-// ************ App Name ***************
-#define APP_NAME "esp32FWApp"
+#ifndef BUILD_OPTIONS_H
+#include "build_options.h"
+#endif
 
-#include <secrets.h>
-
-#define LOG_LEVEL LOG_LEVEL_INFO
-// #define LOG_LEVEL LOG_LEVEL_VERBOSE
-
-// #define TELNET_LOGGING
-// #define WEBSTREAM_LOGGING
-// #define SYSLOG_LOGGING
-// #define MQTT_LOGGING
+#ifndef APP_CONFIG_H
+#include "app_config.h"
+#endif
 
 #ifndef FRAMEWORK_H
 #include "framework.h"
