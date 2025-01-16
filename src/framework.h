@@ -53,6 +53,8 @@ extern "C"
 #define MAX_IMAGE_WIDTH 320
 
 #include <HTTPClient.h>
+
+#include <ESPAsyncWebServer.h>
 #include <AsyncMqttClient.h>
 #include <ArduinoJson.h>
 
@@ -118,6 +120,8 @@ int32_t yPos = 0;
 const char *appName = APP_NAME;
 #endif
 
+const char *appSecret = APP_SECRET;
+#define FIRMWARE_VERSION "v0.0.1"
 
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
@@ -131,6 +135,7 @@ const char *ntpServer = NTP_SERVER;
 #endif
 
 // ********** Connectivity Parameters **********
+AsyncWebServer webServer(80);
 AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
@@ -145,7 +150,7 @@ int bootCount = 0;
 esp_sleep_wakeup_cause_t wakeup_reason;
 esp_reset_reason_t reset_reason;
 int maxOtherIndex = -1;
-
+bool shouldReboot = false;
 Preferences preferences;
 
 #ifdef HOSTNAME
@@ -223,6 +228,163 @@ bool isNumeric(char *str)
     }
     return true;
 }
+
+// Make size of files human readable
+// source: https://github.com/CelliesProjects/minimalUploadAuthESP32
+String humanReadableSize(const size_t bytes)
+{
+    if (bytes < 1024)
+        return String(bytes) + " B";
+    else if (bytes < (1024 * 1024))
+        return String(bytes / 1024.0) + " KB";
+    else if (bytes < (1024 * 1024 * 1024))
+        return String(bytes / 1024.0 / 1024.0) + " MB";
+    else
+        return String(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
+}
+
+#pragma endregion
+
+
+
+#pragma region File System
+
+void initFS()
+{
+#ifndef LittleFS
+    // Initialize SPIFFS
+    if (!SPIFFS.begin(true))
+    {
+        Log.errorln("An Error has occurred while mounting SPIFFS");
+        return;
+    }
+#else
+    if (!LittleFS.begin())
+    {
+        Log.errorln("Flash FS initialisation failed!");
+        while (1)
+            yield(); // Stay here twiddling thumbs waiting
+    }
+#endif
+    Log.infoln("Flash FS available!");
+}
+
+#pragma endregion
+
+#pragma region Display and Drawing Functions
+
+#ifdef USE_GRAPHICS
+
+#include <TFT_eSPI.h>
+
+TFT_eSPI tft = TFT_eSPI(); // Create object "tft"
+
+int screenWidth = tft.width();
+int screenHeight = tft.height();
+int screenCenterX = tft.width() / 2;
+int screenCenterY = tft.height() / 2;
+
+void clearScreen()
+{
+    tft.fillScreen(TFT_BLACK);
+}
+
+#endif
+
+#pragma endregion
+
+#pragma region OpenFontRenderer Drawing Functions
+
+#ifdef USE_OPEN_FONT_RENDERER
+
+#include <OpenFontRender.h>
+
+OpenFontRender ofr;
+
+void drawString(String text, int x, int y)
+{
+    ofr.setCursor(x, y);
+    if (ofr.getAlignment() == Align::MiddleCenter)
+    {
+        ofr.setCursor(x, y - ofr.getFontSize() / 5 - 2);
+    }
+    ofr.printf(text.c_str());
+}
+
+void drawString(String text, int x, int y, int font_size)
+{
+    ofr.setFontSize(font_size);
+    drawString(text, x, y);
+}
+
+void drawString(String text, int x, int y, int font_size, int color)
+{
+    ofr.setFontColor(color);
+    drawString(text, x, y, font_size);
+}
+
+void drawString(String text, int x, int y, int font_size, int color, int bg_color)
+{
+    ofr.setFontColor(color, bg_color);
+    drawString(text, x, y, font_size);
+}
+
+#endif
+
+#pragma endregion
+
+#pragma region SD Card Functions
+
+#ifdef USE_SD_CARD
+#include <SD.h>
+
+#define SD_CS 5
+
+void initSD()
+{
+    String oldMethodName = methodName;
+    methodName = "initSD()";
+    Log.verboseln("Entering...");
+
+    if (!SD.begin(SD_CS))
+    {
+        Log.errorln("SD Card Mount Failed");
+        return;
+    }
+    uint8_t cardType = SD.cardType();
+    if (cardType == CARD_NONE)
+    {
+        Log.errorln("No SD card attached");
+        return;
+    }
+    Log.infoln("SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
+                                                              : cardType == CARD_SDHC ? "SDHC"
+                                                                                      : "UNKNOWN");
+
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    Log.infoln("SD Card Size: %lluMB", cardSize);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+}
+#endif
+
+#pragma endregion
+
+#pragma region Audio Functions
+
+#ifdef USE_AUDIO
+#include <AudioFileSourceSD.h>
+#include <AudioFileSourceID3.h>
+#include <AudioGeneratorMP3.h>
+#include <AudioOutputI2S.h>
+
+AudioGeneratorMP3 *mp3;
+AudioOutputI2S *out;
+bool mp3Done = true;
+
+/// @fn void initAudioOutput()
+/// @brief The only function to 
 
 void initAudioOutput()
 {

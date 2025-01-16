@@ -3,6 +3,12 @@
 
 #include "framework.h"
 
+
+#include "web_server.h"
+
+
+
+
 /*
 #include "../assets/icons/weather/clearday.h"
 #include "../assets/icons/weather/clearnight.h"
@@ -26,7 +32,9 @@
 // ********* Framework App Parameters *****************
 
 int appVersion = 1;
-const char *appSecret = APP_SECRET;
+
+
+bool isFirstDraw = true;
 
 // ********** Connectivity Parameters **********
 
@@ -292,11 +300,18 @@ void initAppStrings()
     otherAppMessageHandler[0] = callerIDMessageHandler;
 }
 
+
+
+
 void ProcessWifiConnectTasks()
 {
     String oldMethodName = methodName;
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
+
+    drawTime();
+
+    initWebServer();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -800,6 +815,7 @@ void app_setup()
     Log.infoln("Configuring hardware.");
     // pinMode(DOORBELL_PIN, INPUT);
     // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
+
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;

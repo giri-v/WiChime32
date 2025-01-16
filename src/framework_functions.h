@@ -26,6 +26,13 @@ void framework_setup();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void framework_loop();
+
+void reboot(const char* message)
+{
+    Log.infoln("Rebooting ESP32: %s", message);
+    ESP.restart();
+}
+
 void initSD();
 
 void initFS()
@@ -164,7 +171,7 @@ void doUpdateFirmware(char *fileName)
     Log.infoln("Reset in 2 seconds...");
     delay(2000);
 
-    ESP.restart();
+    reboot("Firmware update complete.");
 }
 
 int getlatestFirmware(char *fileName)
@@ -751,6 +758,13 @@ void framework_setup()
 void framework_loop()
 {
     TLogPlus::Log.loop();
+
+    if (shouldReboot)
+    {
+        shouldReboot = false;
+        reboot("Web Admin Initiated Reboot");
+    }
+
 
     if (!mp3Done)
         playMP3Loop();
