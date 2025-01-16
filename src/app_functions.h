@@ -242,7 +242,7 @@ void drawSplashScreen()
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
     char appIconFilename[50];
-    sprintf(appIconFilename, "/icons/%s.png", appName);
+    sprintf(appIconFilename, "/%s.png", appName);
     if (SPIFFS.exists(appIconFilename))
     {
         drawPNG(appIconFilename, screenCenterX - 50, 10);
