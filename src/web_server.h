@@ -10,6 +10,8 @@
 
 #include "webpages.h"
 
+char logoPath[50];
+
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
 bool checkUserWebAuth(AsyncWebServerRequest *request);
 void notFound(AsyncWebServerRequest *request);
@@ -25,7 +27,7 @@ String listFiles(bool ishtml)
     File foundfile = root.openNextFile();
     if (ishtml)
     {
-        returnText += "<table><tr><th align='left'>Name</th><th align='left'>Size</th><th></th><th></th></tr>";
+        returnText += "<table><thead><tr><th align='left'>Name</th><th align='left'>Size</th><th></th><th></th></tr></thead>";
     }
     while (foundfile)
     {
@@ -99,7 +101,6 @@ void secureGetCSS(AsyncWebServerRequest *request)
     {
         logmessage += " Auth: Success";
         Log.infoln(logmessage.c_str());
-        request->send_P(200, "text/css", simple_css, processor);
     }
     else
     {
@@ -109,37 +110,70 @@ void secureGetCSS(AsyncWebServerRequest *request)
     }
 }
 
-void secureGetHTML(AsyncWebServerRequest *request)
+void secureGetResponse(AsyncWebServerRequest *request)
 {
+    String oldMethodName = methodName;
+    methodName = "secureGetResponse(AsyncWebServerRequest *request)";
+    Log.verboseln("Entering");
+
     String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
+    bool bsuccess = false;
 
     if (checkUserWebAuth(request))
     {
-        logmessage += " Auth: Success";
-        Log.infoln(logmessage.c_str());
+        bsuccess = true;
+        //logmessage += " Auth: Success";
+        //Log.infoln(logmessage.c_str());
         const char *output;
         if (strcmp(request->url().c_str(), "/") == 0)
-        {
-            Log.infoln("Returning index.html.");
             request->send_P(200, "text/html", index_html, processor);
+        else if (strcmp(request->url().c_str(), "/reboot") == 0)
+        {
+            request->send_P(200, "text/html", reboot_html, processor);
+            shouldReboot = true;
+        }
+        else if (strcmp(request->url().c_str(), "/logout") == 0)
+        {
+            request->requestAuthentication();
+            request->send(401);
         }
         else if (strcmp(request->url().c_str(), "/reboot") == 0)
-            output = reboot_html;
-        else if (strcmp(request->url().c_str(), "/logged-out") == 0)
-            output = logout_html;
-        else
-            output = index_html;
+        {
+            request->send_P(200, "text/html", reboot_html, processor);
+            shouldReboot = true;
+        }
+        else if (strcmp(request->url().c_str(), "/listfiles") == 0)
+        {
+            request->send(200, "text/plain", listFiles(true));
+        }
+        else if (strcmp(request->url().c_str(), "/mvp.css") == 0)
+        {
+            request->send_P(200, "text/css", simple_css, processor);
+        }
+        else if (strcmp(request->url().c_str(), logoPath) == 0)
+        {
+            request->send(SPIFFS, appIconFilename, "image/png");
+        }
     }
     else
     {
         logmessage += " Auth: Failed";
-        Log.infoln(logmessage.c_str());
+        //Log.infoln(logmessage.c_str());
         return request->requestAuthentication();
     }
+
+    Log.infoln("Client %s Requested: %s - Auth %s", request->client()->remoteIP().toString(), request->url(), bsuccess ? "Succeeded!" : "Failed!!!");
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
 }
 
 void initWebServer()
 {
+    String oldMethodName = methodName;
+    methodName = "initWebServer()";
+    Log.verboseln("Entering");
+
     // configure web webServer
     Log.infoln("Initializing Web Server on Port 80");
 
@@ -150,79 +184,22 @@ void initWebServer()
     webServer.onFileUpload(handleUpload);
 
     // visiting this page will cause you to be logged out
-    webServer.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-    request->requestAuthentication();
-    request->send(401); });
+    webServer.on("/logout", HTTP_GET, secureGetResponse);
 
     // presents a "you are now logged out webpage
-    webServer.on("/logged-out", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-    String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
-    Log.infoln(logmessage.c_str());
-    request->send_P(401, "text/html", logout_html, processor); });
+    webServer.on("/logged-out", HTTP_GET, secureGetResponse);
 
-    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-                   String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
+    webServer.on("/", HTTP_GET, secureGetResponse);
 
-                   if (checkUserWebAuth(request))
-                   {
-                       logmessage += " Auth: Success";
-                       Log.infoln(logmessage.c_str());
-                       request->send_P(200, "text/html", index_html, processor);
-                   }
-                   else
-                   {
-                       logmessage += " Auth: Failed";
-                       Log.infoln(logmessage.c_str());
-                       return request->requestAuthentication();
-                   } });
+    webServer.on("/mvp.css", HTTP_GET, secureGetResponse);
 
-    webServer.on("/simple.css", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-                   String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
+    webServer.on("/reboot", HTTP_GET, secureGetResponse);
 
-                   if (checkUserWebAuth(request))
-                   {
-                       logmessage += " Auth: Success";
-                       Log.infoln(logmessage.c_str());
-                       request->send_P(200, "text/css", simple_css, processor);
-                   }
-                   else
-                   {
-                       logmessage += " Auth: Failed";
-                       Log.infoln(logmessage.c_str());
-                       return request->requestAuthentication();
-                   } });
+    webServer.on("/listfiles", HTTP_GET, secureGetResponse);
 
-    webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-    String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
-
-    if (checkUserWebAuth(request)) {
-      request->send(200, "text/html", reboot_html);
-      logmessage += " Auth: Success";
-      Log.infoln(logmessage.c_str());
-      shouldReboot = true;
-    } else {
-      logmessage += " Auth: Failed";
-      Log.infoln(logmessage.c_str());
-      return request->requestAuthentication();
-    } });
-
-    webServer.on("/listfiles", HTTP_GET, [](AsyncWebServerRequest *request)
-                 {
-    String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
-    if (checkUserWebAuth(request)) {
-      logmessage += " Auth: Success";
-      Log.infoln(logmessage.c_str());
-      request->send(200, "text/plain", listFiles(true));
-    } else {
-      logmessage += " Auth: Failed";
-      Log.infoln(logmessage.c_str());
-      return request->requestAuthentication();
-    } });
+    sprintf(logoPath, "/images/%s.png", appName);
+    Log.infoln("Setting logo path...");
+    webServer.on(logoPath, HTTP_GET, secureGetResponse);
 
     webServer.on("/file", HTTP_GET, [](AsyncWebServerRequest *request)
                  {
@@ -268,11 +245,14 @@ void initWebServer()
     } });
 
     webServer.begin();
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
 }
 
 void notFound(AsyncWebServerRequest *request)
 {
-    String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
+    String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url() + "Not Found";
     Log.infoln(logmessage.c_str());
     request->send(404, "text/plain", "Not found");
 }
@@ -293,6 +273,10 @@ bool checkUserWebAuth(AsyncWebServerRequest *request)
 // handles uploads to the filserver
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
+    String oldMethodName = methodName;
+    methodName = "drawSplashScreen()";
+    Log.verboseln("Entering");
+
     // make sure authenticated before allowing upload
     if (checkUserWebAuth(request))
     {

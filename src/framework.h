@@ -93,6 +93,7 @@ const char *appSecret = APP_SECRET;
 
 int appInstanceID = -1;
 char friendlyName[100] = "NoNameSet";
+char appIconFilename[50];
 
 bool isFirstLoop = true;
 bool isGoodTime = false;

@@ -246,7 +246,6 @@ void drawSplashScreen()
     sprintf(showText, "Device ID: %i", appInstanceID);
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
-    char appIconFilename[50];
     sprintf(appIconFilename, "/icons/%s.png", appName);
         drawPNG(appIconFilename, screenCenterX - 50, 10);
 
@@ -316,6 +315,7 @@ void ProcessWifiConnectTasks()
 
     drawTime();
 
+    initWebServer();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -359,9 +359,6 @@ void ProcessMqttConnectTasks()
     Log.verboseln("Entering...");
 
     subscribeOtherAppTopics();
-
-    delay(2000);
-    initWebServer();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -766,14 +763,14 @@ void drawCurrentConditions()
 
     Log.infoln("Drawing current conditions.");
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
-    //ofr.setAlignment(Align::TopLeft);
+    ofr.setAlignment(Align::TopLeft);
     //drawString(currentTemp, screenCenterX - 28, screenHeight - currentTempFontSize, currentTempFontSize);
-    drawString(currentTemp, screenWidth - screenCenterX/2 - 10, screenHeight - currentTempFontSize/2, currentTempFontSize);
-    //ofr.setAlignment(Align::MiddleCenter);
+    drawString(currentTemp, 128, screenHeight - 120, currentTempFontSize);
+    ofr.setAlignment(Align::MiddleCenter);
 
     char conditionFilename[50];
     sprintf(conditionFilename, "/icons/weather/%s.png", getIconFromForecastText(currentForecast));
-    drawPNG(conditionFilename, 28, screenHeight - 120);
+    drawPNG(conditionFilename, 20, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
