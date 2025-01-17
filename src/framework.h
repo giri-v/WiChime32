@@ -113,8 +113,6 @@ const char *ntpServer = NTP_SERVER;
 AsyncWebServer webServer(80);
 AsyncMqttClient mqttClient;
 
-
-
 int volume = 50; // Volume is %
 int bootCount = 0;
 esp_sleep_wakeup_cause_t wakeup_reason;
@@ -128,8 +126,6 @@ String hostname = HOSTNAME;
 #endif
 
 uint8_t macAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-
 
 // **************** Debug Parameters ************************
 String methodName = "";
@@ -291,7 +287,7 @@ void initSD()
                                                                                       : "UNKNOWN");
 
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    Log.infoln("SD Card Size: %lluMB", cardSize);
+    Log.infoln("SD Card Size: %l MB", cardSize);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -377,9 +373,12 @@ int32_t yPos = 0;
 // PNGDec File I/O Helper Functions
 void *pngOpen(const char *filename, int32_t *size)
 {
-    Log.verboseln("Attempting to open %s\n", filename);
+    Log.verboseln("Attempting to open %s", filename);
     pngfile = SPIFFS.open(filename, "r");
-    *size = pngfile.size();
+    if (!pngfile)
+        Log.errorln("Failed to open %s", filename);
+    else
+        *size = pngfile.size();
     return &pngfile;
 }
 
@@ -388,7 +387,10 @@ void *pngOpenSD(const char *filename, int32_t *size)
 {
     Log.verboseln("Attempting to open %s\n", filename);
     pngfile = SD.open(filename, "r");
-    *size = pngfile.size();
+    if (!pngfile)
+        Log.errorln("Failed to open %s", filename);
+    else
+        *size = pngfile.size();
     return &pngfile;
 }
 #endif

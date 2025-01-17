@@ -126,11 +126,14 @@ void app_setup();
 void getDailyForecast();
 void drawCurrentConditions();
 void drawCallerID();
+void drawDate();
+void drawTime();
 void clearCallerIDDisplay();
 void callerIDMessageHandler(char *topic, int len, char *payload);
 void parseDailyForecast(JsonDocument &doc);
 String getIconFromForecastText(char *forecast);
 String getIconFromCode(int wmoCode);
+void redrawScreen();
 
 //////////////////////////////////////////
 //// Customizable Functions
@@ -242,13 +245,14 @@ void drawSplashScreen()
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
     char appIconFilename[50];
-    sprintf(appIconFilename, "/%s.png", appName);
-    if (SPIFFS.exists(appIconFilename))
+    sprintf(appIconFilename, "/icons/%s.png", appName);
+    if (SD.exists(appIconFilename))
     {
-        drawPNG(appIconFilename, screenCenterX - 50, 10);
+        drawPNGFromSD(appIconFilename, screenCenterX - 50, 10);
     }
     else
     {
+        drawPNGFromSD(appIconFilename, screenCenterX - 50, 10);
         Log.errorln("Couldn't find icon file: %s", appIconFilename);
     }
 
@@ -268,6 +272,7 @@ void setupDisplay()
     tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
     // ofr.loadFont(Roboto, sizeof(Roboto));
+    
     if (SPIFFS.exists("/Roboto.ttf"))
     {
         Log.infoln("Loading font from file.");
@@ -726,6 +731,13 @@ bool getNewTime()
     return isNewTime;
 }
 
+void redrawScreen()
+{
+    drawTime();
+    drawDate();
+    drawCurrentConditions();
+}
+
 void drawCallerID()
 {
     String oldMethodName = methodName;
@@ -738,7 +750,7 @@ void drawCallerID()
     Log.infoln("Drawing caller ID.");
     tft.fillRect(0, screenHeight - 120, screenWidth, 120, TFT_BLACK);
     ofr.setAlignment(Align::TopLeft);
-    drawString(callerName, 120 , screenHeight - 120, 48);
+    drawString(callerName, 120 , screenHeight - 115, 48);
     drawString(callerNumber, 120 , screenHeight - 50, 36);
     ofr.setAlignment(Align::MiddleCenter);
     drawPNG(phoneIcon, 2, screenHeight - 120);
@@ -754,11 +766,14 @@ void drawCurrentConditions()
 
     Log.infoln("Drawing current conditions.");
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
-    drawString(currentTemp, screenCenterX, screenHeight - currentTempFontSize / 2, currentTempFontSize);
+    //ofr.setAlignment(Align::TopLeft);
+    //drawString(currentTemp, screenCenterX - 28, screenHeight - currentTempFontSize, currentTempFontSize);
+    drawString(currentTemp, screenWidth - screenCenterX/2 - 10, screenHeight - currentTempFontSize/2, currentTempFontSize);
+    //ofr.setAlignment(Align::MiddleCenter);
 
     char conditionFilename[50];
     sprintf(conditionFilename, "/icons/weather/%s.png", getIconFromForecastText(currentForecast));
-    drawPNG(conditionFilename, 2, screenHeight - 120);
+    drawPNG(conditionFilename, 28, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -841,8 +856,10 @@ void app_loop()
 
         if (isFirstDraw && isGoodTime)
         {
+            Log.infoln("First draw done. Clearing screen...");
             isFirstDraw = false;
             clearScreen();
+            redrawScreen();
         }
         // put your main code here, to run repeatedly:
         if (getNewTime())

@@ -11,7 +11,7 @@
 #include <secrets.h>
 
 #define LOG_LEVEL LOG_LEVEL_INFO
-// #define LOG_LEVEL LOG_LEVEL_VERBOSE
+//#define LOG_LEVEL LOG_LEVEL_VERBOSE
 
 // #define TELNET_LOGGING
 // #define WEBSTREAM_LOGGING

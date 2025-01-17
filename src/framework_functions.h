@@ -15,7 +15,6 @@ int wifiFailCount = 0;
 
 char latestFirmwareFileName[100];
 
-void initFS();
 void connectToWifi();
 void connectToMqtt();
 void resetWifiFailCount(TimerHandle_t xTimer);
@@ -39,13 +38,11 @@ void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void framework_loop();
 
-void reboot(const char* message)
+void reboot(const char *message)
 {
     Log.infoln("Rebooting ESP32: %s", message);
     ESP.restart();
 }
-
-
 
 void connectToWifi()
 {
@@ -675,10 +672,15 @@ void framework_setup()
     {
         Log.infoln("AppInstanceID: %d", appInstanceID);
     }
-
+#ifdef USE_SD_CARD
     initSD();
+#endif
+
     initFS();
+
+#ifdef USE_AUDIO
     initAudioOutput();
+#endif
 
     setupDisplay();
     // Framework region end
@@ -726,9 +728,12 @@ void framework_loop()
         reboot("Web Admin Initiated Reboot");
     }
 
-
+#ifdef USE_AUDIO
     if (!mp3Done)
+    {
         playMP3Loop();
+    }
+#endif
 }
 
 void framework_start()
