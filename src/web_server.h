@@ -32,9 +32,18 @@ String listFiles(bool ishtml)
     {
         if (ishtml)
         {
-            returnText += "<tr align='left'><td>" + String(foundfile.name()) + "</td><td>" + humanReadableSize(foundfile.size()) + "</td>";
-            returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'download\')\">Download</button>";
-            returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'delete\')\">Delete</button></tr>";
+            if (foundfile.isDirectory())
+            {
+                returnText += "<tr align='left'><td>" + String(foundfile.name()) + "</td><td></td>";
+                returnText += "<td></td>";
+                returnText += "<td></td></tr>";
+            }
+            else
+            {
+                returnText += "<tr align='left'><td>" + String(foundfile.name()) + "</td><td>" + humanReadableSize(foundfile.size()) + "</td>";
+                returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'download\')\">Download</button>";
+                returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'delete\')\">Delete</button></tr>";
+            }
         }
         else
         {

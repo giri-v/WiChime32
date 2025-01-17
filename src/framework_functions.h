@@ -4,7 +4,7 @@
 #include "framework.h"
 
 int maxWifiFailCount = 5;
-int wifiFailCountTimeLimit = 10;
+int wifiFailCountTimeLimit = 20;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 // TimerHandle_t checkFWUpdateTimer;
@@ -26,7 +26,6 @@ void onWifiDisconnect(const WiFiEvent_t &event);
 void WiFiEvent(WiFiEvent_t event);
 void mqttPublishWill();
 void mqttPublishID();
-bool isNumeric(char *str);
 bool checkMessageForAppSecret(JsonDocument &doc);
 void onMqttMessage(char *topic, char *payload,
                    AsyncMqttClientMessageProperties properties,
@@ -288,9 +287,11 @@ void onWifiDisconnect(const WiFiEvent_t &event)
     // mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     if (wifiFailCount == 0)
     {
+        Log.infoln("Wifi got disconnected. Starting Wifi Fail Count Timer.");
         xTimerStart(wifiFailCountTimer, 0);
     }
     wifiFailCount++;
+    Log.infoln("Wifi Fail Count: %i", wifiFailCount);
     if (wifiFailCount > maxWifiFailCount)
     {
         Log.errorln("Too many WiFi failures. Rebooting.");

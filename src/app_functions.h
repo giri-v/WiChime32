@@ -252,7 +252,7 @@ void drawSplashScreen()
     }
     else
     {
-        drawPNGFromSD(appIconFilename, screenCenterX - 50, 10);
+        drawPNG(appIconFilename, screenCenterX - 50, 10);
         Log.errorln("Couldn't find icon file: %s", appIconFilename);
     }
 
@@ -268,23 +268,27 @@ void setupDisplay()
 
     Log.infoln("Setting up display.");
     tft.init();
+    // tft.begin();
     tft.setRotation(2);
     tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
-    // ofr.loadFont(Roboto, sizeof(Roboto));
-    
-    if (SPIFFS.exists("/Roboto.ttf"))
+
+    if (SPIFFS.exists("/fonts/Roboto-Regular.ttf"))
     {
         Log.infoln("Loading font from file.");
-        if (ofr.loadFont("/Roboto.ttf"))
+        if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
         {
-            Log.errorln("Failed to load font.");
+            Log.errorln("Failed to load font from SPIFFS, loading from PROGMEM!!!");
             ofr.loadFont(Roboto, sizeof(Roboto));
+        }
+        else
+        {
+            Log.infoln("Loaded font from SPIFFS.");
         }
     }
     else
     {
-        Log.errorln("Failed to load font.");
+        Log.errorln("Font does not exist on SPIFFS, loading from PROGMEM!!!");
         ofr.loadFont(Roboto, sizeof(Roboto));
     }
 
