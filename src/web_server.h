@@ -16,7 +16,6 @@ void notFound(AsyncWebServerRequest *request);
 void configureWebServer();
 String processor(const String &var);
 
-
 // list all of the files, if ishtml=true, return html rather than simple text
 String listFiles(bool ishtml)
 {
@@ -92,6 +91,53 @@ String processor(const String &var)
     return "Undefined!";
 }
 
+void secureGetCSS(AsyncWebServerRequest *request)
+{
+    String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
+
+    if (checkUserWebAuth(request))
+    {
+        logmessage += " Auth: Success";
+        Log.infoln(logmessage.c_str());
+        request->send_P(200, "text/css", simple_css, processor);
+    }
+    else
+    {
+        logmessage += " Auth: Failed";
+        Log.infoln(logmessage.c_str());
+        return request->requestAuthentication();
+    }
+}
+
+void secureGetHTML(AsyncWebServerRequest *request)
+{
+    String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
+
+    if (checkUserWebAuth(request))
+    {
+        logmessage += " Auth: Success";
+        Log.infoln(logmessage.c_str());
+        const char *output;
+        if (strcmp(request->url().c_str(), "/") == 0)
+        {
+            Log.infoln("Returning index.html.");
+            request->send_P(200, "text/html", index_html, processor);
+        }
+        else if (strcmp(request->url().c_str(), "/reboot") == 0)
+            output = reboot_html;
+        else if (strcmp(request->url().c_str(), "/logged-out") == 0)
+            output = logout_html;
+        else
+            output = index_html;
+    }
+    else
+    {
+        logmessage += " Auth: Failed";
+        Log.infoln(logmessage.c_str());
+        return request->requestAuthentication();
+    }
+}
+
 void initWebServer()
 {
     // configure web webServer
@@ -105,19 +151,19 @@ void initWebServer()
 
     // visiting this page will cause you to be logged out
     webServer.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
     request->requestAuthentication();
     request->send(401); });
 
     // presents a "you are now logged out webpage
     webServer.on("/logged-out", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
     String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
     Log.infoln(logmessage.c_str());
     request->send_P(401, "text/html", logout_html, processor); });
 
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
                    String logmessage = "Client:" + request->client()->remoteIP().toString() + +" " + request->url();
 
                    if (checkUserWebAuth(request))
@@ -131,8 +177,7 @@ void initWebServer()
                        logmessage += " Auth: Failed";
                        Log.infoln(logmessage.c_str());
                        return request->requestAuthentication();
-                   }
-               });
+                   } });
 
     webServer.on("/simple.css", HTTP_GET, [](AsyncWebServerRequest *request)
                  {
@@ -152,7 +197,7 @@ void initWebServer()
                    } });
 
     webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
     String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
 
     if (checkUserWebAuth(request)) {
@@ -167,7 +212,7 @@ void initWebServer()
     } });
 
     webServer.on("/listfiles", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
     String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
     if (checkUserWebAuth(request)) {
       logmessage += " Auth: Success";
@@ -180,7 +225,7 @@ void initWebServer()
     } });
 
     webServer.on("/file", HTTP_GET, [](AsyncWebServerRequest *request)
-               {
+                 {
     String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
     if (checkUserWebAuth(request)) {
       logmessage += " Auth: Success";
@@ -239,7 +284,7 @@ bool checkUserWebAuth(AsyncWebServerRequest *request)
 
     if (request->authenticate(appName, appSecret))
     {
-        Log.infoln("is authenticated via username and password");
+        Log.verboseln("is authenticated via username and password");
         isAuthenticated = true;
     }
     return isAuthenticated;

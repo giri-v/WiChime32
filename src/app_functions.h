@@ -78,6 +78,8 @@ char callerNumber[25] = "Unknown";
 bool bCallPresent = false;
 TimerHandle_t callerIDOverlayTimer;
 
+//SimpleTimer tmr
+
 bool currentTempChanged = false;
 bool isValidForecast = false;
 bool forceUpdateForecast = false;
@@ -246,15 +248,7 @@ void drawSplashScreen()
 
     char appIconFilename[50];
     sprintf(appIconFilename, "/icons/%s.png", appName);
-    if (SD.exists(appIconFilename))
-    {
-        drawPNGFromSD(appIconFilename, screenCenterX - 50, 10);
-    }
-    else
-    {
         drawPNG(appIconFilename, screenCenterX - 50, 10);
-        Log.errorln("Couldn't find icon file: %s", appIconFilename);
-    }
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -322,7 +316,6 @@ void ProcessWifiConnectTasks()
 
     drawTime();
 
-    initWebServer();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -366,6 +359,9 @@ void ProcessMqttConnectTasks()
     Log.verboseln("Entering...");
 
     subscribeOtherAppTopics();
+
+    delay(2000);
+    initWebServer();
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
