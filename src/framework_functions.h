@@ -673,17 +673,21 @@ void framework_setup()
     {
         Log.infoln("AppInstanceID: %d", appInstanceID);
     }
+
+    initFS();
+    
+    setupDisplay();
+
 #ifdef USE_SD_CARD
     initSD();
 #endif
 
-    initFS();
+
 
 #ifdef USE_AUDIO
     initAudioOutput();
 #endif
 
-    setupDisplay();
     // Framework region end
 
     // This is connectivity setup code

@@ -313,7 +313,7 @@ void ProcessWifiConnectTasks()
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
 
-    drawTime();
+    //drawTime();
 
     initWebServer();
 
