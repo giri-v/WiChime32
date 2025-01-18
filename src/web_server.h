@@ -148,6 +148,10 @@ void secureGetResponse(AsyncWebServerRequest *request)
         }
         else if (strcmp(request->url().c_str(), "/mvp.css") == 0)
         {
+            request->send_P(200, "text/css", mvp_min_css, processor);
+        }
+        else if (strcmp(request->url().c_str(), "/simple.css") == 0)
+        {
             request->send_P(200, "text/css", simple_css, processor);
         }
         else if (strcmp(request->url().c_str(), logoPath) == 0)
