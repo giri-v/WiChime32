@@ -11,28 +11,31 @@ const char index_html[] PROGMEM = R"rawliteral(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>%APP_NAME%</title>
     <link rel="icon" href="/images/%APP_NAME%.png" />
-    <link type="text/css" rel="stylesheet" href="/mvp.css">
+    <link type="text/css" rel="stylesheet" href="%CSS_FILE%">
 </head>
 <body id="top">
     <header>
         <nav>
-            <a href="/"><img alt="%APP_NAME%" style="float:left;" src="/images/%APP_NAME%.png" height="48" /></a>
-            <h1>%APP_NAME% Admin page</h1>
-    </header>
-    <main>
-        <hr>
-        <section>
-            <p>
+            <a href="/"><img alt="%APP_NAME%" src="/images/%APP_NAME%.png" height="48" /></a>
+            <ul>
                 <button onclick="logoutButton()">Logout</button>
                 <button onclick="rebootButton()">Reboot</button>
                 <button onclick="listFilesButton()">List Files</button>
                 <button onclick="showUploadButtonFancy()">Upload File</button>
-            </p>
+            </ul>
+        </nav>
+        <h1>%APP_NAME% Admin page</h1>
+
+    </header>
+    <main>
+        <hr>
+        <section>
+            <aside>
         <p id="status"></p>
         <p id="detailsheader"></p>
         <p id="details"></p>
-        <p>Free Storage: <span id="freespiffs">%FREESPIFFS%</span> | Used Storage: <span id="usedspiffs">%USEDSPIFFS%</span>
-         | Total Storage: <span id="totalspiffs">%TOTALSPIFFS%</span></p>
+        <p>Free Storage: <span id="freespiffs">%FREESPIFFS%</span> | Used Storage: <span id="usedspiffs">%USEDSPIFFS%</span> | Total Storage: <span id="totalspiffs">%TOTALSPIFFS%</span></p>
+         </aside>
         </section>
     </main>
     <footer>

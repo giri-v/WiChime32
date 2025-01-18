@@ -10,6 +10,9 @@
 
 #include "webpages.h"
 
+const char *cssFile = "/mvp.css";
+const char *selectedCSS = mvp_min_css;
+
 char logoPath[50];
 
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
@@ -90,6 +93,11 @@ String processor(const String &var)
         return String(appName);
     }
 
+    if (var == "CSS_FILE")
+    {
+        return String(cssFile);
+    }
+
     return "Undefined!";
 }
 
@@ -146,13 +154,9 @@ void secureGetResponse(AsyncWebServerRequest *request)
         {
             request->send(200, "text/plain", listFiles(true));
         }
-        else if (strcmp(request->url().c_str(), "/mvp.css") == 0)
+        else if (strcmp(request->url().c_str(), cssFile) == 0)
         {
-            request->send_P(200, "text/css", mvp_min_css, processor);
-        }
-        else if (strcmp(request->url().c_str(), "/simple.css") == 0)
-        {
-            request->send_P(200, "text/css", simple_css, processor);
+            request->send_P(200, "text/css", selectedCSS, processor);
         }
         else if (strcmp(request->url().c_str(), logoPath) == 0)
         {
@@ -195,7 +199,8 @@ void initWebServer()
 
     webServer.on("/", HTTP_GET, secureGetResponse);
 
-    webServer.on("/mvp.css", HTTP_GET, secureGetResponse);
+
+    webServer.on(cssFile, HTTP_GET, secureGetResponse);
 
     webServer.on("/reboot", HTTP_GET, secureGetResponse);
 
