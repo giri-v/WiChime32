@@ -668,14 +668,14 @@ void framework_setup()
     }
 
     initFS();
-    
+
+#ifdef USE_GRAPHICS
     setupDisplay();
+#endif
 
 #ifdef USE_SD_CARD
     initSD();
 #endif
-
-
 
 #ifdef USE_AUDIO
     initAudioOutput();

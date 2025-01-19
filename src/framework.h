@@ -258,6 +258,11 @@ void drawString(String text, int x, int y, int font_size, int color, int bg_colo
 #include <SD.h>
 
 #define SD_CS 5
+#define SD_SCLK 18
+#define SD_MISO 19
+#define SD_MOSI 23
+
+SPIClass SDSPI(VSPI);
 
 // printDirectory
 void printDirectory(File dir, int numTabs)
@@ -302,14 +307,22 @@ void initSD()
     methodName = "initSD()";
     Log.verboseln("Entering...");
 
+    pinMode(5, OUTPUT);
+    digitalWrite(5, HIGH);
+
 #ifdef USE_GRAPHICS
-    if (!SD.begin(SD_CS, tftspi))
+    tftspi.begin(18, 19, 23); // tftspi.begin(SCLK, MISO, MOSI);
+    tftspi.setFrequency(1000000);
+    if (!SD.begin(5, tftspi))
     {
         Log.errorln("SD Card Mount Failed");
         return;
     }
+
 #else
-    if (!SD.begin(SD_CS))
+    SDSPI.begin(18, 19, 23); // SDSPI.begin(SCLK, MISO, MOSI);
+    SDSPI.setFrequency(1000000);
+    if (!SD.begin(5, SDSPI))
     {
         Log.errorln("SD Card Mount Failed");
         return;
@@ -357,6 +370,7 @@ void initSD()
 #include <AudioFileSourceID3.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2S.h>
+#include <AudioOutputI2SNoDAC.h>
 
 AudioGeneratorMP3 *mp3;
 AudioOutputI2S *out;
@@ -367,19 +381,52 @@ bool mp3Done = true;
 
 void initAudioOutput()
 {
-    out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
+    Log.infoln("Initializing audio output...");
+    //out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
+    out = new AudioOutputI2SNoDAC();
     out->SetOutputModeMono(true);
     out->SetGain(1.0);
 }
 
+// Called when a metadata event occurs (i.e. an ID3 tag, an ICY block, etc.
+void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string)
+{
+    (void)cbData;
+    
+
+    char msg[255];
+    sprintf(msg, "ID3 callback for: [%s] = '", type);
+    String outMsg = msg;
+
+    if (isUnicode)
+    {
+        string += 2;
+    }
+
+    while (*string)
+    {
+        char a = *(string++);
+        if (isUnicode)
+        {
+            string++;
+        }
+        sprintf(msg, "%c", a);
+        outMsg += msg;
+    }
+    outMsg += "'";
+    Log.infoln(outMsg.c_str());
+}
+
 void playMP3(char *filename)
 {
+    Log.infoln("Playing %s...", filename);
     AudioFileSourceSPIFFS *file;
     AudioFileSourceID3 *id3;
 
-        file = new AudioFileSourceSPIFFS(filename);
+    file = new AudioFileSourceSPIFFS(filename);
 
     id3 = new AudioFileSourceID3(file);
+    id3->RegisterMetadataCB(MDCallback, (void *)"ID3TAG");
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
     {
@@ -389,6 +436,7 @@ void playMP3(char *filename)
     {
         mp3Done = false;
     }
+
 }
 
 #ifdef USE_SD_CARD
