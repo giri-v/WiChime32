@@ -350,7 +350,10 @@ void initSD()
 #pragma region Audio Functions
 
 #ifdef USE_AUDIO
+#include <AudioFileSourceSPIFFS.h>
+#ifdef USE_SD_CARD
 #include <AudioFileSourceSD.h>
+#endif
 #include <AudioFileSourceID3.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2S.h>
@@ -371,10 +374,11 @@ void initAudioOutput()
 
 void playMP3(char *filename)
 {
-    AudioFileSourceSD *file;
+    AudioFileSourceSPIFFS *file;
     AudioFileSourceID3 *id3;
 
-    file = new AudioFileSourceSD(filename);
+        file = new AudioFileSourceSPIFFS(filename);
+
     id3 = new AudioFileSourceID3(file);
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
@@ -386,6 +390,28 @@ void playMP3(char *filename)
         mp3Done = false;
     }
 }
+
+#ifdef USE_SD_CARD
+void playMP3FromSD(char *filename)
+{
+    AudioFileSourceSD *file;
+    AudioFileSourceID3 *id3;
+
+    file = new AudioFileSourceSD(filename);
+
+    id3 = new AudioFileSourceID3(file);
+    mp3 = new AudioGeneratorMP3();
+    if (!mp3->begin(id3, out))
+    {
+        Log.errorln("Failed to begin MP3 decode.");
+    }
+    else
+    {
+        mp3Done = false;
+    }
+}
+#endif
+
 
 void playMP3Loop()
 {

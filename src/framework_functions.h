@@ -562,8 +562,6 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
             JsonDocument doc;
             DeserializationError error = deserializeJson(doc, msg);
 
-            if (checkMessageForAppSecret(doc))
-            {
                 // This is a command because there is an AppInstanceID in topic #2
                 int cmdTargetID = atoi(topics[1]);
                 if ((cmdTargetID == appInstanceID) || (cmdTargetID == -1))
@@ -573,11 +571,6 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
                 else
                 { // This command is for another instance
                 }
-            }
-            else
-            {
-                Log.errorln("AppSecret not found in message!");
-            }
         }
         else
         { // This is not a properly formatted command (might be a response)

@@ -38,10 +38,6 @@ bool isFirstDraw = true;
 
 // ********** Connectivity Parameters **********
 
-typedef void (*mqttMessageHandler)(char *topic, char *payload,
-                                   AsyncMqttClientMessageProperties properties,
-                                   size_t len, size_t index, size_t total);
-
 
 // ********** App Global Variables **********
 
@@ -55,6 +51,7 @@ const char *firmwareUrl = "/firmware/";
 const char *appRootUrl = "/internal/iot/";
 
 char appSubTopic[100];
+char ringTopic[50];
 
 char currentTime[6] = "00:00";
 char meridian[3] = "AM";
@@ -101,11 +98,15 @@ int middleCenterY = tft.height() / 2;
 const char dailyForecastUrl[51] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast";
 const char hourlyForecastUrl[58] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast/hourly";
 
+char startupSound[25] = "/sounds/droplet.mp3";
+
 // ********** Possible Customizations Start ***********
 
 int otherAppTopicCount = 0;
 char otherAppTopic[10][25];
 void (*otherAppMessageHandler[10])(char *topic, int len, char *payload);
+
+bool checkMessageForAppSecret(JsonDocument &doc);
 
 void printTimestamp(Print *_logOutput, int x);
 void logTimestamp();
@@ -298,6 +299,7 @@ void setupDisplay()
 void initAppStrings()
 {
     sprintf(appSubTopic, "%s/#", appName);
+    sprintf(ringTopic, "%s/ring", appName);
 
     otherAppTopicCount = 1;
     sprintf(otherAppTopic[0], "callattendant");
@@ -312,6 +314,7 @@ void ProcessWifiConnectTasks()
     String oldMethodName = methodName;
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
+
 
     //drawTime();
 
@@ -391,6 +394,8 @@ void appMessageHandler(char *topic, int len, char *payload)
         token = strtok(NULL, "/");
     }
 
+
+
     char msg[len + 1];
     memcpy(msg, payload, len);
     msg[len] = 0;
@@ -398,13 +403,28 @@ void appMessageHandler(char *topic, int len, char *payload)
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, msg);
 
-    // We can assume the first 2 subtopics are the appName and the appInstanceID
-    // The rest of the subtopics are the command
+    if (checkMessageForAppSecret(doc))
+    {
+        if (strcmp(topics[2], "play"))
+        {
+        }
+        else if (strcmp(topics[2], "set"))
+        {
+            // TODO: Figure out what needs to get set
+        }
+    }
+    else
+    {
+        Log.errorln("AppSecret not found in message!");
+    }
 
-    Log.verboseln("Exiting...");
-    methodName = oldMethodName;
-    return;
-}
+        // We can assume the first 2 subtopics are the appName and the appInstanceID
+        // The rest of the subtopics are the command
+
+        Log.verboseln("Exiting...");
+        methodName = oldMethodName;
+        return;
+    }
 
 void clearCallerIDDisplay()
 {
@@ -809,8 +829,38 @@ void drawTime()
     methodName = oldMethodName;
 }
 
+void CheckPlayerBusy()
+{
+    String oldMethodName = methodName;
+    methodName = "CheckPlayerBusy()";
+
+    uint8_t retVal = 0;
+
+
+
+    methodName = oldMethodName;
+}
+
+void playNextChime()
+{
+    Log.infoln("Playing next chime.");
+    playMP3(startupSound);
+}
+
+void publishRing()
+{
+    mqttClient.publish(ringTopic, 1, false);
+}
+
+void doorbellRang()
+{
+        playNextChime();
+        publishRing();
+}
+
 IRAM_ATTR void interruptService()
 {
+    doorbellRang();
 }
 
 void app_setup()
@@ -830,6 +880,7 @@ void app_setup()
     // pinMode(DOORBELL_PIN, INPUT);
     // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
 
+    //playMP3(startupSound);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
