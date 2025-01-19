@@ -3,11 +3,7 @@
 
 #include "framework.h"
 
-
 #include "web_server.h"
-
-
-
 
 /*
 #include "../assets/icons/weather/clearday.h"
@@ -33,11 +29,9 @@
 
 int appVersion = 1;
 
-
 bool isFirstDraw = true;
 
 // ********** Connectivity Parameters **********
-
 
 // ********** App Global Variables **********
 
@@ -75,7 +69,7 @@ char callerNumber[25] = "Unknown";
 bool bCallPresent = false;
 TimerHandle_t callerIDOverlayTimer;
 
-//SimpleTimer tmr
+// SimpleTimer tmr
 
 bool currentTempChanged = false;
 bool isValidForecast = false;
@@ -248,23 +242,16 @@ void drawSplashScreen()
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
     sprintf(appIconFilename, "/icons/%s.png", appName);
-        drawPNG(appIconFilename, screenCenterX - 50, 10);
+    drawPNG(appIconFilename, screenCenterX - 50, 10);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
 
-void setupDisplay()
+void setupFonts()
 {
-    String oldMethodName = methodName;
-    methodName = "setupDisplay()";
-    Log.verboseln("Entering");
+#ifdef USE_OPEN_FONT_RENDERER
 
-    Log.infoln("Setting up display.");
-    tft.init();
-    // tft.begin();
-    tft.setRotation(2);
-    tft.fillScreen(TFT_BLACK);
     ofr.setDrawer(tft);
 
     if (SPIFFS.exists("/fonts/Roboto-Regular.ttf"))
@@ -289,8 +276,20 @@ void setupDisplay()
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
     ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);
+#endif
+}
 
-    drawSplashScreen();
+void setupDisplay()
+{
+    String oldMethodName = methodName;
+    methodName = "setupDisplay()";
+    Log.verboseln("Entering");
+
+    Log.infoln("Setting up display.");
+    tft.init();
+    // tft.begin();
+    tft.setRotation(2);
+    tft.fillScreen(TFT_BLACK);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
@@ -306,17 +305,13 @@ void initAppStrings()
     otherAppMessageHandler[0] = callerIDMessageHandler;
 }
 
-
-
-
 void ProcessWifiConnectTasks()
 {
     String oldMethodName = methodName;
     methodName = "ProcessAppWifiConnectTasks()";
     Log.verboseln("Entering...");
 
-
-    //drawTime();
+    // drawTime();
 
     initWebServer();
 
@@ -394,8 +389,6 @@ void appMessageHandler(char *topic, int len, char *payload)
         token = strtok(NULL, "/");
     }
 
-
-
     char msg[len + 1];
     memcpy(msg, payload, len);
     msg[len] = 0;
@@ -418,13 +411,13 @@ void appMessageHandler(char *topic, int len, char *payload)
         Log.errorln("AppSecret not found in message!");
     }
 
-        // We can assume the first 2 subtopics are the appName and the appInstanceID
-        // The rest of the subtopics are the command
+    // We can assume the first 2 subtopics are the appName and the appInstanceID
+    // The rest of the subtopics are the command
 
-        Log.verboseln("Exiting...");
-        methodName = oldMethodName;
-        return;
-    }
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+    return;
+}
 
 void clearCallerIDDisplay()
 {
@@ -767,8 +760,8 @@ void drawCallerID()
     Log.infoln("Drawing caller ID.");
     tft.fillRect(0, screenHeight - 120, screenWidth, 120, TFT_BLACK);
     ofr.setAlignment(Align::TopLeft);
-    drawString(callerName, 120 , screenHeight - 115, 48);
-    drawString(callerNumber, 120 , screenHeight - 50, 36);
+    drawString(callerName, 120, screenHeight - 115, 48);
+    drawString(callerNumber, 120, screenHeight - 50, 36);
     ofr.setAlignment(Align::MiddleCenter);
     drawPNG(phoneIcon, 2, screenHeight - 120);
     Log.verboseln("Exiting...");
@@ -784,7 +777,7 @@ void drawCurrentConditions()
     Log.infoln("Drawing current conditions.");
     tft.fillRect(0, screenHeight - currentTempFontSize, screenWidth, currentTempFontSize, TFT_BLACK);
     ofr.setAlignment(Align::TopLeft);
-    //drawString(currentTemp, screenCenterX - 28, screenHeight - currentTempFontSize, currentTempFontSize);
+    // drawString(currentTemp, screenCenterX - 28, screenHeight - currentTempFontSize, currentTempFontSize);
     drawString(currentTemp, 128, screenHeight - 120, currentTempFontSize);
     ofr.setAlignment(Align::MiddleCenter);
 
@@ -836,8 +829,6 @@ void CheckPlayerBusy()
 
     uint8_t retVal = 0;
 
-
-
     methodName = oldMethodName;
 }
 
@@ -854,8 +845,8 @@ void publishRing()
 
 void doorbellRang()
 {
-        playNextChime();
-        publishRing();
+    playNextChime();
+    publishRing();
 }
 
 IRAM_ATTR void interruptService()
@@ -880,7 +871,7 @@ void app_setup()
     // pinMode(DOORBELL_PIN, INPUT);
     // attachInterrupt(digitalPinToInterrupt(DOORBELL_PIN), doorbellPressed, FALLING);
 
-    //playMP3(startupSound);
+    // playMP3(startupSound);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;

@@ -36,6 +36,12 @@ void framework_setup();
 void logWakeupReason(esp_sleep_wakeup_cause_t wakeup_reason);
 void logResetReason(esp_reset_reason_t reset_reason);
 void framework_loop();
+void setupWifi();
+void setupMQTT();
+void setupLogging();
+void setupLogging();
+void logHWInfo();
+void getPreferences();
 
 void reboot(const char *message)
 {
@@ -596,6 +602,45 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     methodName = oldMethodName;
 }
 
+void setupWifi()
+{
+    wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000),
+                                      pdFALSE, (void *)0,
+                                      reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
+
+    WiFi.hostname(hostname);
+    WiFi.onEvent(WiFiEvent);
+}
+
+void setupMQTT()
+{
+    // This is connectivity setup code
+    mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE,
+                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+
+    mqttClient.onConnect(onMqttConnect);
+    mqttClient.onDisconnect(onMqttDisconnect);
+    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+#ifdef MQTT_USER
+    mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
+#endif
+
+    if (appInstanceID >= 0)
+    {
+        mqttClient.onMessage(onMqttMessage);
+    }
+    else
+    {
+        mqttClient.onMessage(onMqttIDMessage);
+        appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000),
+                                              pdFALSE, (void *)0,
+                                              reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
+        xTimerStart(appInstanceIDWaitTimer, 0);
+    }
+}
+
 void logMACAddress(uint8_t baseMac[6])
 {
     char mac[200];
@@ -605,7 +650,7 @@ void logMACAddress(uint8_t baseMac[6])
     Log.infoln(mac);
 }
 
-void framework_setup()
+void setupLogging()
 {
     // Framework: Setting up logging
     Serial.begin(115200);
@@ -638,7 +683,10 @@ void framework_setup()
 
     Log.begin(LOG_LEVEL, &TLogPlus::Log, false);
     Log.setPrefix(printTimestamp);
+}
 
+void logHWInfo()
+{
     esp_base_mac_addr_get(macAddress);
     logMACAddress(macAddress);
 
@@ -650,12 +698,10 @@ void framework_setup()
     reset_reason = esp_reset_reason();
     logWakeupReason(wakeup_reason);
     logResetReason(reset_reason);
+}
 
-    Log.noticeln("Starting %s v%d...", appName, appVersion);
-
-    // Framework: Setting up app framework
-    Log.verboseln("Entering ...");
-
+void getPreferences()
+{
     preferences.begin(appName, false);
     loadPrefs();
     if (appInstanceID < 0)
@@ -666,6 +712,23 @@ void framework_setup()
     {
         Log.infoln("AppInstanceID: %d", appInstanceID);
     }
+}
+
+void framework_setup()
+{
+    String oldMethodName = methodName;
+    methodName = "onMqttMessage()";
+    Log.verboseln("Entering...");
+
+    setupLogging();
+    
+    logHWInfo();
+
+    Log.noticeln("Starting %s v%d...", appName, appVersion);
+
+    // Framework: Setting up app framework
+
+    getPreferences();
 
     initFS();
 
@@ -677,43 +740,22 @@ void framework_setup()
     initSD();
 #endif
 
+#ifdef USE_OPEN_FONT_RENDERER
+    setupFonts();
+#endif
+
+    drawSplashScreen();
+
 #ifdef USE_AUDIO
     initAudioOutput();
 #endif
 
     // Framework region end
+    setupWifi();
 
-    // This is connectivity setup code
-    mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE,
-                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-    wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE,
-                                      (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
-    wifiFailCountTimer = xTimerCreate("wifiFailCountTimer", pdMS_TO_TICKS(wifiFailCountTimeLimit * 1000),
-                                      pdFALSE, (void *)0,
-                                      reinterpret_cast<TimerCallbackFunction_t>(resetWifiFailCount));
+    setupMQTT();
 
-    WiFi.hostname(hostname);
-    WiFi.onEvent(WiFiEvent);
 
-    mqttClient.onConnect(onMqttConnect);
-    mqttClient.onDisconnect(onMqttDisconnect);
-    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-#ifdef MQTT_USER
-    mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
-#endif
-
-    if (appInstanceID >= 0)
-    {
-        mqttClient.onMessage(onMqttMessage);
-    }
-    else
-    {
-        mqttClient.onMessage(onMqttIDMessage);
-        appInstanceIDWaitTimer = xTimerCreate("appInstanceIDWaitTimer", pdMS_TO_TICKS(10000),
-                                              pdFALSE, (void *)0,
-                                              reinterpret_cast<TimerCallbackFunction_t>(setAppInstanceID));
-        xTimerStart(appInstanceIDWaitTimer, 0);
-    }
 }
 
 void framework_loop()
