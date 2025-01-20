@@ -76,7 +76,8 @@ int middleCenterY = tft.height() / 2;
 const char dailyForecastUrl[51] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast";
 const char hourlyForecastUrl[58] = "/internal/proxy/nws/gridpoints/MTR/103,81/forecast/hourly";
 
-char startupSound[25] = "/sounds/droplet.mp3";
+char startupSound[25] = "/droplet.mp3";
+char fontFile[50] = "/RobotoRegular.ttf";
 
 // ********** Possible Customizations Start ***********
 
@@ -196,8 +197,6 @@ String getIconFromCode(int wmoCode)
 
 String getIconFromForecastText(char *forecast, bool isDaytime)
 {
-
-    Log.infoln("Incoming forecast is: %s", forecast);
     if ((strcmp(forecast, "Sunny") == 0) || (strcmp(forecast, "Clear") == 0))
     {
         if (isDaytime)
@@ -321,22 +320,22 @@ void setupFonts()
     // This is designed to fail if FONT_FS is not defined
     // because none of the file access functions will work
     // then this branch will default to the compile-time font
-    if (fontFS.exists("/fonts/Roboto-Regular.ttf"))
+    if (fontFS.exists(fontFile))
     {
         Log.infoln("Loading font from file.");
-        if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
+        if (ofr.loadFont(fontFile))
         {
-            Log.errorln("Failed to load font from SPIFFS, loading from PROGMEM!!!");
+            Log.errorln("Failed to load font from FS, loading from PROGMEM!!!");
             ofr.loadFont(Roboto, sizeof(Roboto));
         }
         else
         {
-            Log.infoln("Loaded font from SPIFFS.");
+            Log.infoln("Loaded font from FS.");
         }
     }
     else
     {
-        Log.errorln("Font does not exist on SPIFFS, loading from PROGMEM!!!");
+        Log.errorln("Font does not exist on FS, loading from PROGMEM!!!");
         ofr.loadFont(Roboto, sizeof(Roboto));
     }
 
@@ -471,6 +470,8 @@ void appMessageHandler(char *topic, int len, char *payload)
     {
         if (strcmp(topics[2], "play"))
         {
+            Log.infoln("Playing %s", startupSound);
+            playMP3(startupSound);
         }
         else if (strcmp(topics[2], "set"))
         {
@@ -669,8 +670,9 @@ void printDirectory(File dir, int numTabs)
             res += "  ";
             uint32_t tSize = static_cast<uint32_t>(entry.size());
             res += String(tSize);
+            Log.infoln(res.c_str());
         }
-        Log.infoln(res.c_str());
+        //Log.infoln(res.c_str());
         entry.close();
     }
 }
