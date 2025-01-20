@@ -196,6 +196,8 @@ String getIconFromCode(int wmoCode)
 
 String getIconFromForecastText(char *forecast, bool isDaytime)
 {
+
+    Log.infoln("Incoming forecast is: %s", forecast);
     if ((strcmp(forecast, "Sunny") == 0) || (strcmp(forecast, "Clear") == 0))
     {
         if (isDaytime)
@@ -212,6 +214,7 @@ String getIconFromForecastText(char *forecast, bool isDaytime)
     }
     else if (strcmp(forecast, "Partly Cloudy") == 0)
     {
+        Log.infoln("Got Partly Cloudy.");
         if (isDaytime)
             return "partlycloudyday";
         else
@@ -299,7 +302,7 @@ void drawSplashScreen()
     sprintf(showText, "Device ID: %i", appInstanceID);
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
-    sprintf(appIconFilename, "/icons/%s.png", appName);
+    sprintf(appIconFilename, "/%s.png", appName);
     drawPNG(appIconFilename, screenCenterX - 50, 10);
 
     Log.verboseln("Exiting...");
@@ -886,13 +889,15 @@ void drawCurrentConditions()
     drawString(currentTemp, 128, screenHeight - 120, currentTempFontSize);
     ofr.setAlignment(Align::MiddleCenter);
 
+    String fn = getIconFromForecastText(currentForecast, isDaytime);
     char conditionFilename[50];
-    sprintf(conditionFilename, "/%s.png", getIconFromForecastText(currentForecast, isDaytime));
+    sprintf(conditionFilename, "/%s.png", fn.c_str());
+
 
     if (SPIFFS.exists(conditionFilename))
-        drawPNG(conditionFilename, 20, screenHeight - 120);
+        drawPNG(conditionFilename, 10, screenHeight - 120);
     else
-        drawPNG("/notavailable.png", 20, screenHeight - 120);
+        drawPNG("/notavailable.png", 10, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
