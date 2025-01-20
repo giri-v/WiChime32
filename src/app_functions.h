@@ -131,6 +131,7 @@ void parseDailyForecast(JsonDocument &doc);
 String getIconFromForecastText(char *forecast);
 String getIconFromCode(int wmoCode);
 void redrawScreen();
+void printDirectory(File dir, int numTabs);
 
 //////////////////////////////////////////
 //// Customizable Functions
@@ -251,13 +252,16 @@ void drawSplashScreen()
 void setupFonts()
 {
 #ifdef USE_OPEN_FONT_RENDERER
+    String oldMethodName = methodName;
+    methodName = "setupDisplay()";
+    Log.verboseln("Entering");
 
     ofr.setDrawer(tft);
 
-    if (SPIFFS.exists("/fonts/Roboto-Regular.ttf"))
+    if (SD.exists("/fonts/Roboto-Regular.ttf"))
     {
         Log.infoln("Loading font from file.");
-        if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
+        if (ofr.loadFont("/Roboto-Regular.ttf"))
         {
             Log.errorln("Failed to load font from SPIFFS, loading from PROGMEM!!!");
             ofr.loadFont(Roboto, sizeof(Roboto));
@@ -276,6 +280,10 @@ void setupFonts()
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
     ofr.setFontSize(baseFontSize);
     ofr.setAlignment(Align::MiddleCenter);
+
+    Log.verboseln("Exiting...");
+    methodName = oldMethodName;
+
 #endif
 }
 
@@ -565,6 +573,43 @@ void logTimestamp()
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
+}
+
+// printDirectory
+void printDirectory(File dir, int numTabs)
+{
+    while (true)
+    {
+        File entry = dir.openNextFile();
+        String res = "";
+        if (!entry)
+        {
+
+            // no more files
+            break;
+        }
+        for (uint8_t i = 0; i < numTabs; i++)
+        {
+            res += " ";
+        }
+        res += entry.name();
+        if (entry.isDirectory())
+        {
+            res += "/";
+            Log.infoln(res.c_str());
+            printDirectory(entry, numTabs + 1);
+        }
+        else
+        {
+
+            // Files have sizes, directories do not.
+            res += "  ";
+            uint32_t tSize = static_cast<uint32_t>(entry.size());
+            res += String(tSize);
+        }
+        Log.infoln(res.c_str());
+        entry.close();
+    }
 }
 
 void printTimestamp(Print *_logOutput, int x)

@@ -264,43 +264,6 @@ void drawString(String text, int x, int y, int font_size, int color, int bg_colo
 
 SPIClass SDSPI(VSPI);
 
-// printDirectory
-void printDirectory(File dir, int numTabs)
-{
-    while (true)
-    {
-        File entry = dir.openNextFile();
-        String res = "";
-        if (!entry)
-        {
-
-            // no more files
-            break;
-        }
-        for (uint8_t i = 0; i < numTabs; i++)
-        {
-            res += " ";
-        }
-        res += entry.name();
-        if (entry.isDirectory())
-        {
-            res += "/";
-            Log.infoln(res.c_str());
-            printDirectory(entry, numTabs + 1);
-        }
-        else
-        {
-
-            // Files have sizes, directories do not.
-            res += "  ";
-            uint32_t tSize = static_cast<uint32_t>(entry.size());
-            res += String(tSize);
-        }
-        Log.infoln(res.c_str());
-        entry.close();
-    }
-}
-
 void initSD()
 {
     String oldMethodName = methodName;
@@ -342,17 +305,6 @@ void initSD()
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
     Log.infoln("SD Card Size: %l MB", cardSize);
 
-    File root = SD.open("/");
-    if (!root)
-    {
-        Log.errorln("Failed to open SD Card!!!");
-    }
-    else
-    {
-        printDirectory(root, 0);
-        root.close();
-    }
-
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
 }
@@ -382,10 +334,10 @@ bool mp3Done = true;
 void initAudioOutput()
 {
     Log.infoln("Initializing audio output...");
-    //out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
-    out = new AudioOutputI2SNoDAC();
+    out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
+    //out = new AudioOutputI2SNoDAC();
     out->SetOutputModeMono(true);
-    out->SetGain(1.0);
+    out->SetGain(0.75);
 }
 
 // Called when a metadata event occurs (i.e. an ID3 tag, an ICY block, etc.
@@ -419,24 +371,24 @@ void MDCallback(void *cbData, const char *type, bool isUnicode, const char *stri
 
 void playMP3(char *filename)
 {
-    Log.infoln("Playing %s...", filename);
     AudioFileSourceSPIFFS *file;
     AudioFileSourceID3 *id3;
 
+    Log.infoln("Playing %s", filename);
     file = new AudioFileSourceSPIFFS(filename);
+    if (file)
+    {
+        Log.errorln("Failed to open %s", filename);
+    }
 
     id3 = new AudioFileSourceID3(file);
     id3->RegisterMetadataCB(MDCallback, (void *)"ID3TAG");
+    
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
-    {
         Log.errorln("Failed to begin MP3 decode.");
-    }
     else
-    {
         mp3Done = false;
-    }
-
 }
 
 #ifdef USE_SD_CARD
