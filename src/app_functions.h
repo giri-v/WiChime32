@@ -258,10 +258,10 @@ void setupFonts()
 
     ofr.setDrawer(tft);
 
-    if (SD.exists("/fonts/Roboto-Regular.ttf"))
+    if (fontFS.exists("/fonts/Roboto-Regular.ttf"))
     {
         Log.infoln("Loading font from file.");
-        if (ofr.loadFont("/Roboto-Regular.ttf"))
+        if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
         {
             Log.errorln("Failed to load font from SPIFFS, loading from PROGMEM!!!");
             ofr.loadFont(Roboto, sizeof(Roboto));
