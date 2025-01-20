@@ -310,6 +310,8 @@ long int OFR_ftell(FT_FILE *stream)
 {
     return ((File *)stream)->position();
 }
+#else
+fs::FS fontFS = SPIFFS;
 
 #endif
 

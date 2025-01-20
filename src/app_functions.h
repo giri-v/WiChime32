@@ -258,7 +258,10 @@ void setupFonts()
 
     ofr.setDrawer(tft);
 
-    if (fontFS.exists("/fonts/Roboto-Regular.ttf"))
+    // This is designed to fail if FONT_FS is not defined
+    // because none of the file access functions will work
+    // then this branch will default to the compile-time font
+    if (fontFS.exists("/fonts/Roboto-Regular.ttf")) 
     {
         Log.infoln("Loading font from file.");
         if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
