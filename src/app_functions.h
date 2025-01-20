@@ -887,7 +887,7 @@ void drawCurrentConditions()
     ofr.setAlignment(Align::MiddleCenter);
 
     char conditionFilename[50];
-    sprintf(conditionFilename, "/%s.png", getIconFromForecastText(currentForecast));
+    sprintf(conditionFilename, "/%s.png", getIconFromForecastText(currentForecast, isDaytime));
 
     if (SPIFFS.exists(conditionFilename))
         drawPNG(conditionFilename, 20, screenHeight - 120);
