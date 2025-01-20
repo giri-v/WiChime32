@@ -5,22 +5,6 @@
 
 #include "web_server.h"
 
-/*
-#include "../assets/icons/weather/clearday.h"
-#include "../assets/icons/weather/clearnight.h"
-#include "../assets/icons/weather/cloudy.h"
-#include "../assets/icons/weather/rain.h"
-#include "../assets/icons/weather/overcast.h"
-#include "../assets/icons/weather/wind.h"
-#include "../assets/icons/weather/drizzle.h"
-#include "../assets/icons/weather/partlycloudyday.h"
-#include "../assets/icons/weather/partlycloudynight.h"
-#include "../assets/icons/weather/thunderstorms.h"
-#include "../assets/icons/weather/fog.h"
-#include "../assets/icons/weather/notavailable.h"
-#include "../assets/icons/weather/snow.h"
-#include "../assets/icons/weather/sleet.h"
-*/
 #include "../assets/icons/weather/notavailable.h"
 
 #include "../assets/fonts/Roboto.h"
@@ -210,14 +194,87 @@ String getIconFromCode(int wmoCode)
     methodName = oldMethodName;
 }
 
-String getIconFromForecastText(char *forecast)
+String getIconFromForecastText(char *forecast, bool isDaytime)
 {
     if ((strcmp(forecast, "Sunny") == 0) || (strcmp(forecast, "Clear") == 0))
-        return getIconFromCode(0);
+    {
+        if (isDaytime)
+            return "clearday";
+        else
+            return "clearnight";
+    }
     else if (strcmp(forecast, "Mostly Clear") == 0)
-        return getIconFromCode(1);
+    {
+        if (isDaytime)
+            return "clearday";
+        else
+            return "clearnight";
+    }
+    else if (strcmp(forecast, "Partly Cloudy") == 0)
+    {
+        if (isDaytime)
+            return "partlycloudyday";
+        else
+            return "partlycloudynight";
+    }
+    else if (strcmp(forecast, "Mostly Sunny") == 0)
+    {
+        if (isDaytime)
+            return "clearday";
+        else
+            return "clearnight";
+    }
+    else if (strcmp(forecast, "Cloudy") == 0)
+    {
+        if (isDaytime)
+            return "cloudy";
+        else
+            return "cloudy";
+    }
+    else if (strcmp(forecast, "Windy") == 0)
+    {
+        if (isDaytime)
+            return "wind";
+        else
+            return "wind";
+    }
+    else if (strcmp(forecast, "Overcast") == 0)
+    {
+        if (isDaytime)
+            return "overcastday";
+        else
+            return "overcastnight";
+    }
+    else if (strcmp(forecast, "Rainy") == 0)
+    {
+        if (isDaytime)
+            return "rain";
+        else
+            return "rain";
+    }
+    else if (strcmp(forecast, "Thunderstorms") == 0)
+    {
+        if (isDaytime)
+            return "clearday";
+        else
+            return "clearnight";
+    }
+    else if (strcmp(forecast, "Fog") == 0)
+    {
+        if (isDaytime)
+            return "hunderstormsday";
+        else
+            return "thunderstormsnight";
+    }
+    else if (strcmp(forecast, "Haze") == 0)
+    {
+        if (isDaytime)
+            return "hazeday";
+        else
+            return "hazenight";
+    }
     else
-        return getIconFromCode(-1);
+        return "notavailable";
 }
 
 void drawSplashScreen()
@@ -261,7 +318,7 @@ void setupFonts()
     // This is designed to fail if FONT_FS is not defined
     // because none of the file access functions will work
     // then this branch will default to the compile-time font
-    if (fontFS.exists("/fonts/Roboto-Regular.ttf")) 
+    if (fontFS.exists("/fonts/Roboto-Regular.ttf"))
     {
         Log.infoln("Loading font from file.");
         if (ofr.loadFont("/fonts/Roboto-Regular.ttf"))
@@ -830,8 +887,12 @@ void drawCurrentConditions()
     ofr.setAlignment(Align::MiddleCenter);
 
     char conditionFilename[50];
-    sprintf(conditionFilename, "/icons/weather/%s.png", getIconFromForecastText(currentForecast));
-    drawPNG(conditionFilename, 20, screenHeight - 120);
+    sprintf(conditionFilename, "/%s.png", getIconFromForecastText(currentForecast));
+
+    if (SPIFFS.exists(conditionFilename))
+        drawPNG(conditionFilename, 20, screenHeight - 120);
+    else
+        drawPNG("/notavailable.png", 20, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
