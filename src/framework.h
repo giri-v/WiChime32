@@ -235,7 +235,7 @@ void initSD()
 
 #ifdef USE_GRAPHICS
     tftspi.begin(18, 19, 23); // tftspi.begin(SCLK, MISO, MOSI);
-    tftspi.setFrequency(1000000);
+    tftspi.setFrequency(40000000);
     if (!SD.begin(5, tftspi))
     {
         Log.errorln("SD Card Mount Failed");
@@ -276,7 +276,6 @@ void initSD()
 
 #include <OpenFontRender.h>
 
-
 OpenFontRender ofr;
 
 #ifdef FONT_FS
@@ -310,8 +309,6 @@ long int OFR_ftell(FT_FILE *stream)
 {
     return ((File *)stream)->position();
 }
-#else
-fs::FS fontFS = SPIFFS;
 
 #endif
 
@@ -370,8 +367,9 @@ bool mp3Done = true;
 void initAudioOutput()
 {
     Log.infoln("Initializing audio output...");
-    out = new AudioOutputI2S(0, 2, 8, -1); // Output to builtInDAC
-    //out = new AudioOutputI2SNoDAC();
+    // out = new AudioOutputI2S(0, 1, 8, -1); // Output to builtInDAC
+    out = new AudioOutputI2S(0, 2, 24, -1); // Output to builtInDAC
+    // out = new AudioOutputI2SNoDAC();
     out->SetOutputModeMono(true);
     out->SetGain(0.75);
 }
@@ -380,7 +378,6 @@ void initAudioOutput()
 void MDCallback(void *cbData, const char *type, bool isUnicode, const char *string)
 {
     (void)cbData;
-    
 
     char msg[255];
     sprintf(msg, "ID3 callback for: [%s] = '", type);
@@ -412,14 +409,14 @@ void playMP3(char *filename)
 
     Log.infoln("Playing %s", filename);
     file = new AudioFileSourceSPIFFS(filename);
-    if (file)
+    if (!file)
     {
         Log.errorln("Failed to open %s", filename);
     }
 
     id3 = new AudioFileSourceID3(file);
     id3->RegisterMetadataCB(MDCallback, (void *)"ID3TAG");
-    
+
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
         Log.errorln("Failed to begin MP3 decode.");
@@ -434,7 +431,8 @@ void playMP3FromSD(char *filename)
     AudioFileSourceID3 *id3;
 
     file = new AudioFileSourceSD(filename);
-
+    if (!file->isOpen())
+        Log.errorln("MP3 File %s could not be opened!!!");
     id3 = new AudioFileSourceID3(file);
     mp3 = new AudioGeneratorMP3();
     if (!mp3->begin(id3, out))
@@ -447,7 +445,6 @@ void playMP3FromSD(char *filename)
     }
 }
 #endif
-
 
 void playMP3Loop()
 {

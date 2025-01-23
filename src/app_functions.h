@@ -316,27 +316,34 @@ void setupFonts()
     Log.verboseln("Entering");
 
     ofr.setDrawer(tft);
+    bool isFontLoaded = false;
 
+#ifdef FONT_FS
     // This is designed to fail if FONT_FS is not defined
     // because none of the file access functions will work
     // then this branch will default to the compile-time font
     if (fontFS.exists(fontFile))
     {
         Log.infoln("Loading font from file.");
-        if (ofr.loadFont(fontFile))
+        if (ofr.loadFont(fontFile) != 0)
         {
-            Log.errorln("Failed to load font from FS, loading from PROGMEM!!!");
-            ofr.loadFont(Roboto, sizeof(Roboto));
+            isFontLoaded = true;
+            Log.infoln("Loaded font from FS.");
         }
         else
         {
-            Log.infoln("Loaded font from FS.");
+            Log.errorln("Failed to load font from FS");
         }
     }
-    else
+#endif
+
+    if (!isFontLoaded)
     {
-        Log.errorln("Font does not exist on FS, loading from PROGMEM!!!");
-        ofr.loadFont(Roboto, sizeof(Roboto));
+        Log.infoln("Loading font from PROGMEM!!!");
+        if (ofr.loadFont(Roboto, sizeof(Roboto)) != 0)
+            Log.errorln("Failed to load font from PROGMEM!!!");
+        else
+            Log.infoln("Loaded font from PROGMEM.");
     }
 
     ofr.setFontColor(TFT_WHITE, TFT_BLACK);
@@ -470,7 +477,6 @@ void appMessageHandler(char *topic, int len, char *payload)
     {
         if (strcmp(topics[2], "play"))
         {
-            Log.infoln("Playing %s", startupSound);
             playMP3(startupSound);
         }
         else if (strcmp(topics[2], "set"))
@@ -672,7 +678,7 @@ void printDirectory(File dir, int numTabs)
             res += String(tSize);
             Log.infoln(res.c_str());
         }
-        //Log.infoln(res.c_str());
+        // Log.infoln(res.c_str());
         entry.close();
     }
 }
@@ -894,7 +900,6 @@ void drawCurrentConditions()
     String fn = getIconFromForecastText(currentForecast, isDaytime);
     char conditionFilename[50];
     sprintf(conditionFilename, "/%s.png", fn.c_str());
-
 
     if (SPIFFS.exists(conditionFilename))
         drawPNG(conditionFilename, 10, screenHeight - 120);
