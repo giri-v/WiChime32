@@ -315,7 +315,7 @@ void drawSplashScreen()
     sprintf(showText, "Device ID: %i", appInstanceID);
     drawString(showText, screenCenterX, tft.height() - appInstanceIDFontSize / 2, appInstanceIDFontSize);
 
-    sprintf(appIconFilename, "/%s.png", appName);
+    sprintf(appIconFilename, "/icons/%s.png", appName);
     drawPNG(appIconFilename, screenCenterX - 50, 10);
 
     Log.verboseln("Exiting...");
@@ -913,12 +913,12 @@ void drawCurrentConditions()
 
     String fn = getIconFromForecastText(currentForecast, isDaytime);
     char conditionFilename[50];
-    sprintf(conditionFilename, "/%s.png", fn.c_str());
+    sprintf(conditionFilename, "/icons/weather/%s.png", fn.c_str());
 
     if (LittleFS.exists(conditionFilename))
         drawPNG(conditionFilename, 10, screenHeight - 120);
     else
-        drawPNG("/notavailable.png", 10, screenHeight - 120);
+        drawPNG("/icons/weather/notavailable.png", 10, screenHeight - 120);
 
     Log.verboseln("Exiting...");
     methodName = oldMethodName;
