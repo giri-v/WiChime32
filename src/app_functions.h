@@ -915,7 +915,7 @@ void drawCurrentConditions()
     char conditionFilename[50];
     sprintf(conditionFilename, "/%s.png", fn.c_str());
 
-    if (SPIFFS.exists(conditionFilename))
+    if (LittleFS.exists(conditionFilename))
         drawPNG(conditionFilename, 10, screenHeight - 120);
     else
         drawPNG("/notavailable.png", 10, screenHeight - 120);

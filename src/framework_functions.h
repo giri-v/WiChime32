@@ -94,7 +94,7 @@ void doUpdateFirmware(char *fileName)
 
     String fsFileName = "/" + String(fileName);
 
-    File file = SPIFFS.open(fsFileName);
+    File file = LittleFS.open(fsFileName);
 
     if (!file)
     {
@@ -151,7 +151,7 @@ int getlatestFirmware(char *fileName)
 
     String fsFileName = "/" + String(fileName);
 
-    File f = SPIFFS.open(fsFileName, FILE_WRITE);
+    File f = LittleFS.open(fsFileName, FILE_WRITE);
     if (f)
     {
         Log.verboseln("[HTTP] begin...");

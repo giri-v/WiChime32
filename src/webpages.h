@@ -34,7 +34,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <p id="status"></p>
         <p id="detailsheader"></p>
         <p id="details"></p>
-        <p>Free Storage: <span id="freespiffs">%FREESPIFFS%</span> | Used Storage: <span id="usedspiffs">%USEDSPIFFS%</span> | Total Storage: <span id="totalspiffs">%TOTALSPIFFS%</span></p>
+        <p>Free Storage: <span id="freespiffs">%FREESPACE%</span> | Used Storage: <span id="usedspiffs">%USEDSPACE%</span> | Total Storage: <span id="totalspiffs">%TOTALSPACE%</span></p>
          </aside>
         </section>
     </main>

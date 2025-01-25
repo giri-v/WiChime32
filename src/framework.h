@@ -38,7 +38,7 @@ extern "C"
 #include <SPI.h>
 
 #ifndef LittleFS
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #else
 #include <LittleFS.h>
 #endif
@@ -169,21 +169,13 @@ String humanReadableSize(const size_t bytes)
 
 void initFS()
 {
-#ifndef LittleFS
-    // Initialize SPIFFS
-    if (!SPIFFS.begin(true))
-    {
-        Log.errorln("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-#else
     if (!LittleFS.begin())
     {
         Log.errorln("Flash FS initialisation failed!");
         while (1)
             yield(); // Stay here twiddling thumbs waiting
     }
-#endif
+
     Log.infoln("Flash FS available!");
 }
 
@@ -348,7 +340,7 @@ void drawString(String text, int x, int y, int font_size, int color, int bg_colo
 #pragma region Audio Functions
 
 #ifdef USE_AUDIO
-#include <AudioFileSourceSPIFFS.h>
+#include <AudioFileSourceLittleFS.h>
 #ifdef USE_SD_CARD
 #include <AudioFileSourceSD.h>
 #endif
@@ -404,11 +396,11 @@ void MDCallback(void *cbData, const char *type, bool isUnicode, const char *stri
 
 void playMP3(char *filename)
 {
-    AudioFileSourceSPIFFS *file;
+    AudioFileSourceLittleFS *file;
     AudioFileSourceID3 *id3;
 
     Log.infoln("Playing %s", filename);
-    file = new AudioFileSourceSPIFFS(filename);
+    file = new AudioFileSourceLittleFS(filename);
     if (!file)
     {
         Log.errorln("Failed to open %s", filename);
@@ -484,7 +476,7 @@ int32_t yPos = 0;
 void *pngOpen(const char *filename, int32_t *size)
 {
     Log.verboseln("Attempting to open %s", filename);
-    pngfile = SPIFFS.open(filename, "r");
+    pngfile = LittleFS.open(filename, "r");
     if (!pngfile)
         Log.errorln("Failed to open %s", filename);
     else

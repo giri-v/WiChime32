@@ -25,8 +25,8 @@ String processor(const String &var);
 String listFiles(bool ishtml)
 {
     String returnText = "";
-    Log.infoln("Listing files stored on SPIFFS");
-    File root = SPIFFS.open("/");
+    Log.infoln("Listing files stored on LittleFS");
+    File root = LittleFS.open("/");
     File foundfile = root.openNextFile();
     if (ishtml)
     {
@@ -73,19 +73,19 @@ String processor(const String &var)
         return FIRMWARE_VERSION;
     }
 
-    if (var == "FREESPIFFS")
+    if (var == "FREESPACE")
     {
-        return humanReadableSize((SPIFFS.totalBytes() - SPIFFS.usedBytes()));
+        return humanReadableSize((LittleFS.totalBytes() - LittleFS.usedBytes()));
     }
 
-    if (var == "USEDSPIFFS")
+    if (var == "USEDSPACE")
     {
-        return humanReadableSize(SPIFFS.usedBytes());
+        return humanReadableSize(LittleFS.usedBytes());
     }
 
-    if (var == "TOTALSPIFFS")
+    if (var == "TOTALSPACE")
     {
-        return humanReadableSize(SPIFFS.totalBytes());
+        return humanReadableSize(LittleFS.totalBytes());
     }
 
     if (var == "APP_NAME")
@@ -160,7 +160,7 @@ void secureGetResponse(AsyncWebServerRequest *request)
         }
         else if (strcmp(request->url().c_str(), logoPath) == 0)
         {
-            request->send(SPIFFS, appIconFilename, "image/png");
+            request->send(LittleFS, appIconFilename, "image/png");
         }
     }
     else
@@ -223,20 +223,23 @@ void initWebServer()
 
         logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url() + "?name=" + String(fileName) + "&action=" + String(fileAction);
 
-        if (!SPIFFS.exists(fileName)) {
+        if (!LittleFS.exists(fileName))
+        {
             logmessage += " ERROR: file does not exist";
             Log.infoln(logmessage.c_str());
             request->send(400, "text/plain", "ERROR: file does not exist");
-        } else {
+        }
+        else
+        {
             logmessage += " file exists";
             Log.infoln(logmessage.c_str());
             if (strcmp(fileAction, "download") == 0)
             {
                 logmessage += " downloaded";
-                request->send(SPIFFS, fileName, "application/octet-stream");
+                request->send(LittleFS, fileName, "application/octet-stream");
           } else if (strcmp(fileAction, "delete") == 0) {
             logmessage += " deleted";
-            SPIFFS.remove(fileName);
+            LittleFS.remove(fileName);
             request->send(200, "text/plain", "Deleted File: " + String(fileName));
           } else {
             logmessage += " ERROR: invalid action param supplied";
@@ -296,7 +299,7 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
         {
             logmessage = "Upload Start: " + String(filename);
             // open the file on first call and store the file handle in the request object
-            request->_tempFile = SPIFFS.open("/" + filename, "w");
+            request->_tempFile = LittleFS.open("/" + filename, "w");
             Log.infoln(logmessage.c_str());
         }
 
