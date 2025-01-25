@@ -226,6 +226,20 @@ String getIconFromForecastText(char *forecast, bool isDaytime)
         else
             return "clearnight";
     }
+    else if (strcmp(forecast, "Chance Light Rain") >= 0)
+    {
+        if (isDaytime)
+            return "rain";
+        else
+            return "rain";
+    }
+    else if (strcmp(forecast, "Mostly Cloudy") == 0)
+    {
+        if (isDaytime)
+            return "cloudy";
+        else
+            return "cloudy";
+    }
     else if (strcmp(forecast, "Cloudy") == 0)
     {
         if (isDaytime)
